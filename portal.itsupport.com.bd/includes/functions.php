@@ -395,15 +395,21 @@ function portal_header($title = "IT Support BD Portal") {
     </head>
     <body class="flex flex-col min-h-screen">
         <nav class="glass-navbar py-4 shadow-lg sticky top-0 z-50">
-            <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
-                <a href="index.php" class="text-2xl font-bold text-primary-light mb-3 md:mb-0">
-                    <i class="fas fa-shield-alt mr-2 text-blue-400"></i>IT Support BD Portal
-                </a>
-                <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">';
-    
+            <div class="container mx-auto px-4">
+                <div class="flex justify-between items-center">
+                    <a href="index.php" class="text-2xl font-bold text-primary-light flex items-center">
+                        <i class="fas fa-shield-alt mr-2 text-blue-400"></i>
+                        <span class="hidden sm:inline">IT Support BD Portal</span>
+                        <span class="sm:hidden">IT Support</span>
+                    </a>
+                    <button id="mobile-menu-btn" class="md:hidden text-white text-2xl focus:outline-none hover:text-blue-400 transition-colors">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div id="desktop-menu" class="hidden md:flex md:space-x-4">';
+
     $nav_links = [
-        'products.php' => 'Products',
-        'dashboard.php' => 'Dashboard',
+        'products.php' => '<i class="fas fa-box mr-1"></i> Products',
+        'dashboard.php' => '<i class="fas fa-th-large mr-1"></i> Dashboard',
         'support.php' => '<i class="fas fa-headset mr-1"></i> Support',
         'profile.php' => '<i class="fas fa-user-circle mr-1"></i> Profile',
         'cart.php' => '<i class="fas fa-shopping-cart mr-1"></i> Cart',
@@ -414,12 +420,12 @@ function portal_header($title = "IT Support BD Portal") {
             $active_class = ($current_page === $href) ? 'active' : '';
             echo '<a href="' . htmlspecialchars($href) . '" class="nav-link ' . $active_class . '">' . $text . '</a>';
         }
-        echo '<a href="logout.php" class="nav-link"><i class="fas fa-sign-out-alt mr-1"></i> Logout (' . htmlspecialchars($_SESSION['customer_email']) . ')</a>';
+        echo '<a href="logout.php" class="nav-link"><i class="fas fa-sign-out-alt mr-1"></i> Logout</a>';
     } else {
         $public_nav_links = [
-            'products.php' => 'Products',
-            'login.php' => 'Login',
-            'registration.php' => 'Register',
+            'products.php' => '<i class="fas fa-box mr-1"></i> Products',
+            'login.php' => '<i class="fas fa-sign-in-alt mr-1"></i> Login',
+            'registration.php' => '<i class="fas fa-user-plus mr-1"></i> Register',
         ];
         foreach ($public_nav_links as $href => $text) {
             $active_class = ($current_page === $href) ? 'active' : '';
@@ -427,9 +433,39 @@ function portal_header($title = "IT Support BD Portal") {
         }
     }
     echo '</div>
+                </div>
+                <div id="mobile-menu" class="hidden md:hidden mt-4 pb-2 space-y-2 border-t border-blue-400/30 pt-4">';
+
+    if (isCustomerLoggedIn()) {
+        foreach ($nav_links as $href => $text) {
+            $active_class = ($current_page === $href) ? 'active' : '';
+            echo '<a href="' . htmlspecialchars($href) . '" class="nav-link-mobile ' . $active_class . '">' . $text . '</a>';
+        }
+        echo '<a href="logout.php" class="nav-link-mobile"><i class="fas fa-sign-out-alt mr-2"></i> Logout (' . htmlspecialchars($_SESSION['customer_email']) . ')</a>';
+    } else {
+        $public_nav_links = [
+            'products.php' => '<i class="fas fa-box mr-2"></i> Products',
+            'login.php' => '<i class="fas fa-sign-in-alt mr-2"></i> Login',
+            'registration.php' => '<i class="fas fa-user-plus mr-2"></i> Register',
+        ];
+        foreach ($public_nav_links as $href => $text) {
+            $active_class = ($current_page === $href) ? 'active' : '';
+            echo '<a href="' . htmlspecialchars($href) . '" class="nav-link-mobile ' . $active_class . '">' . $text . '</a>';
+        }
+    }
+    echo '</div>
             </div>
         </nav>
-        <main class="container mx-auto py-8 flex-grow page-content">';
+        <script>
+        document.getElementById("mobile-menu-btn")?.addEventListener("click", function() {
+            var menu = document.getElementById("mobile-menu");
+            var icon = this.querySelector("i");
+            menu.classList.toggle("hidden");
+            icon.classList.toggle("fa-bars");
+            icon.classList.toggle("fa-times");
+        });
+        </script>
+        <main class="container mx-auto py-4 md:py-8 px-4 flex-grow page-content">';
 }
 
 function portal_footer() {
@@ -455,20 +491,26 @@ function admin_header($title = "Admin Panel") {
     </head>
     <body class="admin-body flex flex-col min-h-screen">
         <nav class="admin-navbar py-4 shadow-md sticky top-0 z-50">
-            <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
-                <a href="adminpanel.php" class="text-2xl font-bold text-blue-400 mb-3 md:mb-0">
-                    <i class="fas fa-user-shield mr-2"></i>Admin Panel
-                </a>
-                <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">';
-    
+            <div class="container mx-auto px-4">
+                <div class="flex justify-between items-center">
+                    <a href="index.php" class="text-2xl font-bold text-blue-400 flex items-center">
+                        <i class="fas fa-user-shield mr-2"></i>
+                        <span class="hidden sm:inline">Admin Panel</span>
+                        <span class="sm:hidden">Admin</span>
+                    </a>
+                    <button id="admin-mobile-menu-btn" class="md:hidden text-blue-400 text-2xl focus:outline-none hover:text-blue-300 transition-colors">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div id="admin-desktop-menu" class="hidden md:flex md:space-x-3">';
+
     $admin_nav_links = [
-        'index.php' => 'Dashboard',
-        'users.php' => 'Customers',
-        'license-manager.php' => 'Licenses',
-        'products.php' => 'Products',
+        'index.php' => '<i class="fas fa-th-large mr-1"></i> Dashboard',
+        'users.php' => '<i class="fas fa-users mr-1"></i> Customers',
+        'license-manager.php' => '<i class="fas fa-key mr-1"></i> Licenses',
+        'products.php' => '<i class="fas fa-box mr-1"></i> Products',
         'tickets.php' => '<i class="fas fa-headset mr-1"></i> Tickets',
         'smtp_settings.php' => '<i class="fas fa-envelope-open-text mr-1"></i> SMTP',
-        'send_notifications.php' => '<i class="fas fa-paper-plane mr-1"></i> Notifications',
+        'send_notifications.php' => '<i class="fas fa-paper-plane mr-1"></i> Notify',
     ];
 
     if (isAdminLoggedIn()) {
@@ -476,20 +518,36 @@ function admin_header($title = "Admin Panel") {
             $active_class = (basename($current_page) === $href) ? 'active' : '';
             echo '<a href="' . htmlspecialchars($href) . '" class="admin-nav-link ' . $active_class . '">' . $text . '</a>';
         }
-        echo '<a href="../logout.php?admin=true" class="admin-nav-link"><i class="fas fa-sign-out-alt mr-1"></i> Logout (' . htmlspecialchars($_SESSION['admin_username']) . ')</a>';
+        echo '<a href="../logout.php?admin=true" class="admin-nav-link"><i class="fas fa-sign-out-alt mr-1"></i> Logout</a>';
     } else {
-        $admin_public_nav_links = [
-            'adminpanel.php' => 'Login',
-        ];
-        foreach ($admin_public_nav_links as $href => $text) {
-            $active_class = (basename($current_page) === basename($href)) ? 'active' : '';
-            echo '<a href="' . htmlspecialchars($href) . '" class="admin-nav-link ' . $active_class . '">' . $text . '</a>';
+        echo '<a href="adminpanel.php" class="admin-nav-link">Login</a>';
+    }
+    echo '</div>
+                </div>
+                <div id="admin-mobile-menu" class="hidden md:hidden mt-4 pb-2 space-y-2 border-t border-blue-400/30 pt-4">';
+
+    if (isAdminLoggedIn()) {
+        foreach ($admin_nav_links as $href => $text) {
+            $active_class = (basename($current_page) === $href) ? 'active' : '';
+            echo '<a href="' . htmlspecialchars($href) . '" class="admin-nav-link-mobile ' . $active_class . '">' . $text . '</a>';
         }
+        echo '<a href="../logout.php?admin=true" class="admin-nav-link-mobile"><i class="fas fa-sign-out-alt mr-2"></i> Logout (' . htmlspecialchars($_SESSION['admin_username']) . ')</a>';
+    } else {
+        echo '<a href="adminpanel.php" class="admin-nav-link-mobile"><i class="fas fa-sign-in-alt mr-2"></i> Login</a>';
     }
     echo '</div>
             </div>
         </nav>
-        <main class="container mx-auto py-8 flex-grow page-content">';
+        <script>
+        document.getElementById("admin-mobile-menu-btn")?.addEventListener("click", function() {
+            var menu = document.getElementById("admin-mobile-menu");
+            var icon = this.querySelector("i");
+            menu.classList.toggle("hidden");
+            icon.classList.toggle("fa-bars");
+            icon.classList.toggle("fa-times");
+        });
+        </script>
+        <main class="container mx-auto py-4 md:py-8 px-4 flex-grow page-content">';
 }
 
 function admin_footer() {

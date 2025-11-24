@@ -238,30 +238,188 @@ body {
 }
 
 
+/* Mobile Navigation Styles */
+.nav-link-mobile {
+    @apply block text-white hover:text-blue-300 px-4 py-3 rounded-lg text-sm font-medium w-full;
+    background: rgba(71, 85, 105, 0.15);
+    border: 1px solid rgba(71, 85, 105, 0.25);
+    transition: all 0.25s ease-in-out;
+}
+
+.nav-link-mobile:hover {
+    background: rgba(74, 144, 226, 0.2);
+    border-color: rgba(74, 144, 226, 0.4);
+    transform: translateX(8px);
+}
+
+.nav-link-mobile.active {
+    background: rgba(74, 144, 226, 0.25);
+    border-color: rgba(74, 144, 226, 0.5);
+    box-shadow: 0 0 12px rgba(74, 144, 226, 0.3);
+}
+
+.admin-nav-link-mobile {
+    @apply block text-gray-300 hover:text-blue-400 px-4 py-3 rounded-lg text-sm font-medium w-full;
+    background: rgba(71, 85, 105, 0.15);
+    border: 1px solid rgba(71, 85, 105, 0.25);
+    transition: all 0.25s ease-in-out;
+}
+
+.admin-nav-link-mobile:hover {
+    background: rgba(80, 227, 194, 0.15);
+    border-color: rgba(80, 227, 194, 0.35);
+    transform: translateX(8px);
+}
+
+.admin-nav-link-mobile.active {
+    background: rgba(80, 227, 194, 0.2);
+    border-color: rgba(80, 227, 194, 0.45);
+    box-shadow: 0 0 12px rgba(80, 227, 194, 0.3);
+}
+
+/* Mobile Menu Animation */
+#mobile-menu {
+    animation: slideDown 0.3s ease-out;
+}
+
+#admin-mobile-menu {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
     }
-    .navbar .flex-col {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .navbar .space-x-4 {
-        flex-direction: column;
-        align-items: flex-start;
-        width: 100%;
-        margin-top: 1rem;
-    }
-    .nav-link {
-        width: 100%;
-        text-align: left;
-        padding: 0.5rem 1rem;
+
+    body {
+        overflow-x: hidden;
     }
 
-    .hero-title { font-size: 2.1rem; }
-    .hero-subtitle { font-size: 1rem; }
-    .glass-card { border-radius: 16px; }
+    .hero-title {
+        font-size: 2.1rem;
+        line-height: 1.2;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .glass-card {
+        border-radius: 16px;
+        padding: 1.5rem;
+    }
+
+    .glass-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .btn-glass-primary,
+    .btn-glass-secondary {
+        width: 100%;
+        justify-content: center;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .floating-orb {
+        opacity: 0.2;
+    }
+
+    .animated-grid {
+        opacity: 0.2;
+    }
+
+    .feature-icon {
+        margin: 0 auto;
+    }
+
+    /* Mobile-specific form improvements */
+    .form-glass-input,
+    .form-admin-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    /* Mobile table improvements */
+    table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Mobile card grid adjustments */
+    .grid {
+        gap: 1rem;
+    }
+
+    /* Touch-friendly buttons */
+    button,
+    .btn-glass-primary,
+    .btn-glass-secondary,
+    .btn-admin-primary,
+    .btn-admin-secondary {
+        min-height: 44px; /* iOS recommended touch target */
+    }
+}
+
+@media (max-width: 640px) {
+    .text-5xl {
+        font-size: 2rem;
+    }
+
+    .text-6xl {
+        font-size: 2.5rem;
+    }
+
+    .hero-title {
+        font-size: 1.875rem;
+    }
+
+    .section-heading {
+        font-size: 1.125rem;
+    }
+
+    .accent-badge {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    /* Compact admin cards on mobile */
+    .admin-card {
+        border-radius: 16px;
+        padding: 1rem;
+    }
+
+    /* Mobile-optimized navigation */
+    .glass-navbar,
+    .admin-navbar {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+}
+
+/* Landscape mode adjustments */
+@media (max-width: 896px) and (orientation: landscape) {
+    .hero-title {
+        font-size: 1.75rem;
+    }
+
+    .glass-card {
+        padding: 1rem;
+    }
 }
 
 /* Admin Panel Specific Styles (Dark Theme) */

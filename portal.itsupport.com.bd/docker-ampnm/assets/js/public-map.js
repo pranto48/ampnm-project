@@ -126,7 +126,7 @@ async function loadMap() {
     });
 
     try {
-        const response = await fetch(`/api.php?action=get_public_map_data&map_id=${mapId}`);
+        const response = await fetch(`api.php?action=get_public_map_data&map_id=${mapId}`);
         if (!response.ok) {
             const detail = await response.text();
             showError("The map could not be loaded.", detail);
