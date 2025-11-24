@@ -10,6 +10,10 @@ RUN set -eux; \
         git \
         nmap \
         unzip \
+        iputils-ping \
+        net-tools \
+        dnsutils \
+        iproute2 \
         default-mysql-client \
         libcurl4-openssl-dev \
         libfreetype6-dev \

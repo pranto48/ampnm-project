@@ -1,60 +1,274 @@
-# Local Network Monitor - PHP/MySQL Version
+# AMPNM - Advanced Multi-Protocol Network Monitor (Docker Version)
 
-## Requirements
-- XAMPP installed on your computer
-- PHP 7.4 or higher
-- MySQL/MariaDB
+Real-time network monitoring system with visual topology mapping.
 
-## Installation Steps
+## 🚀 Quick Start
 
-1. **Start XAMPP**
-   - Open XAMPP Control Panel
-   - Start Apache and MySQL services
+```bash
+docker-compose up -d
+```
 
-2. **Place Files in htdocs**
-   - Create a new folder in `C:\xampp\htdocs\network-monitor\`
-   - Copy all files to this folder:
-     - `index.php` (main dashboard)
-     - `devices.php` (device management)
-     - `history.php` (ping history with filtering)
-     - `api.php` (AJAX API endpoints)
-     - `export.php` (CSV export functionality)
-     - `config.php` (configuration file)
-     - `database_setup.php` (database setup script)
-     - `README.md` (this file)
+Access at: http://localhost:2266
 
-3. **Setup Database**
-   - Open your browser and go to: `http://localhost/network-monitor/database_setup.php`
-   - This will automatically create the database and tables
+**Default Login:**
+- Username: `admin`
+- Password: `password` (change in docker-compose.yml)
 
-4. **Access Application**
-   - Open your browser and go to: `http://localhost/network-monitor/`
-   - The network monitor application will load
+## 📋 Requirements
 
-## Features
-- Ping any host or IP address
-- View ping history stored in MySQL database
-- Monitor local network devices
-- Real-time network status monitoring
-- Device management (add, remove, check status)
-- Historical data with filtering and pagination
-- Export data to CSV
-- Responsive design with Tailwind CSS
-- AJAX-powered interface for smooth interactions
+- Docker & Docker Compose
+- No other dependencies needed!
 
-## Usage
-1. **Dashboard**: Main overview of network status and recent activity
-2. **Device Management**: Add/remove devices and check their status
-3. **Ping History**: View historical ping results with filtering and export options
-4. **Real-time Updates**: AJAX-powered updates without page refresh
+## ✨ Features
 
-## Security Notes
-- This is designed for local network use only
-- The database uses default XAMPP credentials (root with no password)
-- For production use, change database credentials and add authentication
+- **Real-time Monitoring**: ICMP Ping, HTTP/HTTPS, TCP port checks
+- **Network Topology Map**: Visual representation with status colors
+- **Alert System**: Email notifications on status changes
+- **Historical Data**: Track performance metrics over time
+- **Multi-User**: Admin and viewer roles
+- **License Management**: Built-in licensing system
 
-## Troubleshooting
-1. If ping doesn't work, ensure PHP can execute shell commands
-2. Check that Apache and MySQL are running in XAMPP
-3. Verify database connection in config.php if needed
-4. Make sure your firewall allows ping requests
+## 🔧 Configuration
+
+### Environment Variables (docker-compose.yml)
+
+```yaml
+environment:
+  MYSQL_ROOT_PASSWORD: yourSecurePassword
+  MYSQL_DATABASE: network_monitor
+  DB_USER: ampnm_user
+  DB_PASSWORD: yourDbPassword
+  ADMIN_PASSWORD: yourAdminPassword
+  APP_LICENSE_KEY: your-license-key
+```
+
+### Important Settings
+
+- **MYSQL_ROOT_PASSWORD**: MySQL root password
+- **DB_PASSWORD**: Application database password
+- **ADMIN_PASSWORD**: Admin user password (default: `password`)
+- **APP_LICENSE_KEY**: Your license key from portal
+
+## 📊 Monitoring Features
+
+### Check Types
+
+1. **ICMP Ping** (Default)
+   - Latency monitoring
+   - Packet loss detection
+   - TTL tracking
+   - Thresholds: Warning & Critical
+
+2. **TCP Port Check**
+   - Port availability
+   - Connection time
+   - Service status
+
+3. **HTTP/HTTPS Check**
+   - Response code
+   - Response time
+   - Content verification
+
+### Status Levels
+
+- 🟢 **Online**: Device responding normally
+- 🟡 **Warning**: Latency or packet loss threshold exceeded
+- 🔴 **Critical**: Severe latency, packet loss, or offline
+- ⚪ **Offline**: Device unreachable
+- ⚫ **Unknown**: No data or unconfigured
+
+## 🗺️ Network Topology
+
+- Drag-and-drop device placement
+- Connection visualization
+- Real-time status updates
+- Color-coded indicators
+- Custom icons and sizes
+- Public map sharing option
+
+## 📧 Email Notifications
+
+Configure SMTP settings to receive alerts:
+
+1. Go to **Email Notifications**
+2. Enter SMTP server details
+3. Add recipient emails per device
+4. Choose notification triggers:
+   - Device goes online
+   - Device goes offline
+   - Warning status
+   - Critical status
+
+## 🔐 Security
+
+### Best Practices
+
+1. **Change Default Passwords**
+   ```yaml
+   ADMIN_PASSWORD: strong_password_here
+   MYSQL_ROOT_PASSWORD: another_strong_password
+   ```
+
+2. **Restrict Port Access**
+   ```yaml
+   ports:
+     - "127.0.0.1:2266:80"  # Only accessible from localhost
+   ```
+
+3. **Use HTTPS** (Production)
+   - Set up reverse proxy (Nginx/Apache)
+   - Configure SSL certificates
+   - Enable HTTPS redirects
+
+4. **Regular Backups**
+   ```bash
+   docker exec ampnm-mysql mysqldump -u root -p network_monitor > backup.sql
+   ```
+
+## 🛠️ Advanced Configuration
+
+### Custom Ping Intervals
+
+Set per-device:
+- Minimum: 10 seconds
+- Default: 60 seconds
+- Maximum: 3600 seconds (1 hour)
+
+### Threshold Configuration
+
+**Warning Thresholds:**
+- Latency: 100ms default
+- Packet Loss: 10% default
+
+**Critical Thresholds:**
+- Latency: 300ms default
+- Packet Loss: 50% default
+
+## 📂 Docker Volumes
+
+```yaml
+volumes:
+  mysql-data: {}      # Database storage
+  app-uploads: {}     # Icons, backgrounds, backups
+```
+
+### Backup Volumes
+
+```bash
+# Backup database
+docker-compose exec mysql mysqldump -u root -p network_monitor > backup.sql
+
+# Backup uploads
+docker cp ampnm-app:/var/www/html/uploads ./uploads-backup
+```
+
+## 🔄 Updates
+
+```bash
+# Pull latest image
+docker-compose pull
+
+# Restart with new image
+docker-compose down
+docker-compose up -d
+```
+
+## 🐛 Troubleshooting
+
+### Ping Not Working
+
+**Issue**: "sh: 1: ping: not found"
+
+**Solution**: The Dockerfile has been updated to include `iputils-ping`. Rebuild:
+
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+### Database Connection Errors
+
+```bash
+# Check MySQL is running
+docker-compose ps
+
+# View logs
+docker-compose logs mysql
+docker-compose logs app
+
+# Restart services
+docker-compose restart
+```
+
+### Permission Issues
+
+```bash
+# Fix ownership
+docker-compose exec app chown -R www-data:www-data /var/www/html
+```
+
+### Network Access Issues
+
+```bash
+# Check if container can ping external hosts
+docker-compose exec app ping 8.8.8.8
+
+# Check internal network
+docker network inspect ampnm-network
+```
+
+## 📊 Performance
+
+### Recommended Resources
+
+- **Small Setup** (1-10 devices): 512MB RAM, 1 CPU
+- **Medium Setup** (10-50 devices): 1GB RAM, 2 CPUs
+- **Large Setup** (50-200 devices): 2GB RAM, 4 CPUs
+
+### Optimization
+
+```yaml
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+```
+
+## 📞 Support
+
+- **Portal**: https://portal.itsupport.com.bd
+- **Email**: support@itsupport.com.bd
+- **License**: Purchase at portal
+
+## 📝 License
+
+This software requires a valid license key.
+
+### License Tiers
+
+- **Starter**: Up to 10 devices
+- **Professional**: Up to 50 devices
+- **Enterprise**: Up to 200 devices
+
+## 🔗 Related
+
+- **Script Version**: For XAMPP/LAMP installations (see `../script-ampnm/`)
+- **Comparison**: See `../AMPNM_VERSIONS_COMPARISON.md`
+
+## 🆕 What's New
+
+### v1.0 (2024)
+- Initial Docker release
+- ICMP Ping support with iputils-ping
+- Network topology visualization
+- Email notifications
+- Multi-user support
+- License management
+
+---
+
+**Made with ❤️ by IT Support Bangladesh**
