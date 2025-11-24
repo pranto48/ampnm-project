@@ -30,8 +30,15 @@ function enforceLicenseValidation() {
     $status = $_SESSION['license_status_code'];
     $allowed_statuses = ['active', 'grace_period', 'offline_mode', 'offline_warning'];
 
-    // Block access if license is not valid (but allow offline modes)
-    if (!in_array($status, $allowed_statuses)) {
+    // Block access if license is not valid (but allow offline modes and unconfigured state)
+    // Special handling: if license is 'unconfigured', allow access to setup page
+    if ($status === 'unconfigured') {
+        $current_page = basename($_SERVER['PHP_SELF']);
+        if ($current_page !== 'license_setup.php' && $current_page !== 'logout.php' && $current_page !== 'documentation.php') {
+            header('Location: license_setup.php');
+            exit;
+        }
+    } elseif (!in_array($status, $allowed_statuses)) {
         // Allow only license setup pages and documentation
         $current_page = basename($_SERVER['PHP_SELF']);
         $allowed_pages = ['license_setup.php', 'license_expired.php', 'logout.php', 'documentation.php'];

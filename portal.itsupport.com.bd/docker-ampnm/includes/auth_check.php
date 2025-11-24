@@ -36,17 +36,21 @@ if ($_SESSION['user_role'] !== 'admin' && in_array($current_page, $admin_only_pa
 // The verifyLicenseWithPortal() function is now called in license_manager.php
 // which is included above. It populates $_SESSION with license status.
 
-// ENFORCE LICENSE VALIDATION - NO BYPASS POSSIBLE
-enforceLicenseValidation();
-
 // Check license status and redirect if necessary
 $license_status_code = $_SESSION['license_status_code'] ?? 'unknown';
 $app_license_key = getAppLicenseKey();
 
 // If license key is not configured, redirect to setup page
+// BUT: Allow access to license_setup.php without validation
 if (empty($app_license_key) && $current_page !== 'license_setup.php') {
     header('Location: license_setup.php');
     exit;
+}
+
+// ENFORCE LICENSE VALIDATION - NO BYPASS POSSIBLE
+// But only if we're not on the setup page
+if ($current_page !== 'license_setup.php') {
+    enforceLicenseValidation();
 }
 
 // If license is disabled (grace period over, revoked, offline expired, etc.), redirect to license_expired.php

@@ -467,6 +467,8 @@ function admin_header($title = "Admin Panel") {
         'license-manager.php' => 'Licenses',
         'products.php' => 'Products',
         'tickets.php' => '<i class="fas fa-headset mr-1"></i> Tickets',
+        'smtp_settings.php' => '<i class="fas fa-envelope-open-text mr-1"></i> SMTP',
+        'send_notifications.php' => '<i class="fas fa-paper-plane mr-1"></i> Notifications',
     ];
 
     if (isAdminLoggedIn()) {
