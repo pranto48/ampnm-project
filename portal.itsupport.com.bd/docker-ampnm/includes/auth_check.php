@@ -3,6 +3,8 @@
 require_once __DIR__ . '/bootstrap.php';
 // Include config.php to make license-related functions available
 require_once __DIR__ . '/../config.php';
+// Include license guard - CRITICAL SECURITY COMPONENT
+require_once __DIR__ . '/../license_guard.php';
 // Include license_manager.php for license verification logic
 require_once __DIR__ . '/license_manager.php';
 
@@ -33,6 +35,9 @@ if ($_SESSION['user_role'] !== 'admin' && in_array($current_page, $admin_only_pa
 // --- External License Validation ---
 // The verifyLicenseWithPortal() function is now called in license_manager.php
 // which is included above. It populates $_SESSION with license status.
+
+// ENFORCE LICENSE VALIDATION - NO BYPASS POSSIBLE
+enforceLicenseValidation();
 
 // Check license status and redirect if necessary
 $license_status_code = $_SESSION['license_status_code'] ?? 'unknown';
