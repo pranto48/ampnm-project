@@ -1,0 +1,161 @@
+╔══════════════════════════════════════════════════════════════╗
+║  AMPNM - Script Version for XAMPP/LAMP                      ║
+║  Quick Start Guide                                          ║
+╚══════════════════════════════════════════════════════════════╝
+
+📋 INSTALLATION SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This version works on:
+  ✓ XAMPP (Windows/Mac/Linux)
+  ✓ LAMP (Linux servers)
+  ✓ WAMP (Windows)  
+  ✓ Any PHP 7.4+ with MySQL
+
+🚀 QUICK INSTALL (3 STEPS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Copy files to web directory
+  XAMPP: Copy to C:\xampp\htdocs\ampnm (Windows)
+         Copy to /Applications/XAMPP/htdocs/ampnm (Mac)
+  LAMP:  Copy to /var/www/html/ampnm (Linux)
+
+Step 2: Start Apache & MySQL
+  XAMPP: Open XAMPP Control Panel → Start Apache & MySQL
+  LAMP:  sudo systemctl start apache2 mysql
+
+Step 3: Run Setup Wizard
+  Open browser: http://localhost/ampnm/setup.php
+  Click "Setup Database" button
+  Login with admin/admin123
+
+DONE! 🎉
+
+📁 FILE STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+script-ampnm/
+  ├── setup.php           ← START HERE (Setup wizard)
+  ├── database_setup.php  ← Database installer
+  ├── config.php          ← Database configuration
+  ├── index.php           ← Main dashboard
+  ├── devices.php         ← Device management
+  ├── map.php             ← Network topology
+  ├── users.php           ← User management
+  └── README.md           ← Full documentation
+
+🔧 CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Default Database Settings (config.php):
+  Server:   localhost
+  Database: network_monitor
+  User:     root
+  Password: (empty for XAMPP)
+
+Change these if needed before running setup!
+
+📍 ACCESS URLs
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Setup Wizard:  http://localhost/ampnm/setup.php
+Dashboard:     http://localhost/ampnm/
+Database Setup: http://localhost/ampnm/database_setup.php
+phpMyAdmin:    http://localhost/phpmyadmin (XAMPP)
+
+🔐 DEFAULT LOGIN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Username: admin
+Password: admin123
+
+⚠️  CHANGE PASSWORD IMMEDIATELY AFTER FIRST LOGIN!
+
+✨ FEATURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Real-time network monitoring
+✓ Device management (add/edit/delete)
+✓ Multiple check types (PING, HTTP, TCP)
+✓ Visual network topology map
+✓ Alert system with email notifications
+✓ Historical data and reports
+✓ User management
+✓ License system
+✓ RESTful API
+✓ Responsive design (mobile friendly)
+
+🆚 DOCKER vs SCRIPT VERSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This Script version has:
+  ✓ All features from Docker version
+  ✓ Same UI and functionality
+  ✓ Compatible database
+  ✓ No Docker required
+  ✓ Works on shared hosting
+
+Differences:
+  × Installation method only
+  × Configuration file format only
+  
+Everything else is IDENTICAL!
+
+🔧 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: Can't connect to database
+Solution: 
+  1. Check MySQL is running in XAMPP Control Panel
+  2. Verify credentials in config.php
+  3. Create database manually in phpMyAdmin
+
+Problem: Blank page
+Solution:
+  1. Check Apache is running
+  2. Check PHP error log
+  3. Ensure all files copied correctly
+
+Problem: Permission errors (Linux)
+Solution:
+  sudo chown -R www-data:www-data /var/www/html/ampnm
+  sudo chmod -R 755 /var/www/html/ampnm
+
+⏰ AUTOMATED MONITORING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For continuous monitoring, set up a cron job (Linux) or 
+Task Scheduler (Windows):
+
+Linux:
+  * * * * * curl http://localhost/ampnm/api.php?action=check_all_devices
+
+Windows (Task Scheduler):
+  Program: curl.exe
+  Arguments: http://localhost/ampnm/api.php?action=check_all_devices
+  Trigger: Every 1 minute
+
+📞 SUPPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Website: https://portal.itsupport.com.bd
+Email:   support@itsupport.com.bd
+Docs:    See README.md and INSTALLATION.md
+
+📝 FILES INCLUDED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ QUICK_START.txt        ← This file
+✓ README.md              ← Complete documentation
+✓ INSTALLATION.md        ← Detailed install guide
+✓ setup.php              ← Setup wizard
+✓ All application files  ← Ready to use!
+
+═══════════════════════════════════════════════════════════════
+
+NEXT STEP: Open http://localhost/ampnm/setup.php
+
+═══════════════════════════════════════════════════════════════
+
+Questions? Read README.md or contact support@itsupport.com.bd
+
