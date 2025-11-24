@@ -40,6 +40,28 @@ function initMap() {
     // Event Listeners Setup
     // Only admin can edit edges
     if (window.userRole === 'admin') {
+        // Connection type color preview
+        const connectionTypeSelect = document.getElementById('connectionType');
+        const colorPreviewContainer = document.getElementById('connectionColorPreview');
+        const colorPreviewLine = document.getElementById('colorPreviewLine');
+        const colorPreviewLabel = document.getElementById('colorPreviewLabel');
+
+        if (connectionTypeSelect && colorPreviewContainer) {
+            connectionTypeSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const color = selectedOption.getAttribute('data-color');
+
+                if (color) {
+                    colorPreviewContainer.classList.remove('hidden');
+                    colorPreviewLine.style.backgroundColor = color;
+                    colorPreviewLine.style.boxShadow = `0 0 10px ${color}`;
+                    colorPreviewLabel.textContent = color;
+                } else {
+                    colorPreviewContainer.classList.add('hidden');
+                }
+            });
+        }
+
         els.edgeForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('edgeId').value;
@@ -49,6 +71,8 @@ function initMap() {
                 closeModal('edgeModal');
                 state.edges.update({ id, connection_type, label: connection_type });
                 window.notyf.success('Connection updated.');
+                // Trigger color update
+                MapApp.ui.updateEdgeColorsAndDashes();
             } catch (error) {
                 console.error("Failed to update connection:", error);
                 window.notyf.error(error.message || "An error occurred while updating connection.");
@@ -455,6 +479,27 @@ function initMap() {
             window.notyf.error('Failed to copy share link. Please copy manually: ' + shareUrl);
         }
     });
+
+    // Connection Type Legend Toggle
+    const connectionLegend = document.getElementById('connection-legend');
+    const showConnectionLegendBtn = document.getElementById('showConnectionLegend');
+    const toggleConnectionLegendBtn = document.getElementById('toggleConnectionLegend');
+
+    if (showConnectionLegendBtn && connectionLegend && toggleConnectionLegendBtn) {
+        showConnectionLegendBtn.addEventListener('click', () => {
+            connectionLegend.classList.remove('hidden');
+            showConnectionLegendBtn.classList.add('hidden');
+        });
+
+        toggleConnectionLegendBtn.addEventListener('click', () => {
+            connectionLegend.classList.add('hidden');
+            showConnectionLegendBtn.classList.remove('hidden');
+        });
+
+        // Show legend by default
+        connectionLegend.classList.remove('hidden');
+        showConnectionLegendBtn.classList.add('hidden');
+    }
 
     // Initial Load
     (async () => {

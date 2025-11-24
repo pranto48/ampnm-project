@@ -15,8 +15,19 @@ MapApp.config = {
         offline: '#64748b', unknown: '#94a3b8'
     },
     edgeColorMap: {
-        cat5: '#a78bfa', fiber: '#f97316', wifi: '#38bdf8', radio: '#84cc16',
-        lan: '#60a5fa', // New LAN color (blue)
-        'logical-tunneling': '#c084fc' // New Logical Tunneling color (purple)
+        cat5: '#a78bfa',              // Purple - CAT5 Cable
+        fiber: '#f97316',             // Orange - Fiber Optic
+        wifi: '#38bdf8',              // Light Blue - WiFi
+        radio: '#84cc16',             // Lime Green - Radio
+        lan: '#60a5fa',               // Blue - LAN
+        'logical-tunneling': '#c084fc' // Light Purple - Logical Tunneling
+    },
+    edgeLabelMap: {
+        cat5: '🔌 CAT5',
+        fiber: '💡 Fiber',
+        wifi: '📡 WiFi',
+        radio: '📻 Radio',
+        lan: '🌐 LAN',
+        'logical-tunneling': '🔒 Tunnel'
     }
 };
