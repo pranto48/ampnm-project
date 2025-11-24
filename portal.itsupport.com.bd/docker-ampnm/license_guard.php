@@ -28,14 +28,14 @@ function enforceLicenseValidation() {
     }
     
     $status = $_SESSION['license_status_code'];
-    $allowed_statuses = ['active', 'grace_period'];
-    
-    // Block access if license is not valid
+    $allowed_statuses = ['active', 'grace_period', 'offline_mode', 'offline_warning'];
+
+    // Block access if license is not valid (but allow offline modes)
     if (!in_array($status, $allowed_statuses)) {
-        // Allow only license setup pages
+        // Allow only license setup pages and documentation
         $current_page = basename($_SERVER['PHP_SELF']);
-        $allowed_pages = ['license_setup.php', 'license_expired.php', 'logout.php'];
-        
+        $allowed_pages = ['license_setup.php', 'license_expired.php', 'logout.php', 'documentation.php'];
+
         if (!in_array($current_page, $allowed_pages)) {
             // Force redirect to license expired page
             header('Location: license_expired.php');
@@ -72,31 +72,39 @@ function isLicensed() {
 
 /**
  * Get license expiration warning
- * Returns warning message if license is expiring soon or in grace period
+ * Returns warning message if license is expiring soon or in grace period or offline
  */
 function getLicenseWarning() {
     if (!isset($_SESSION['license_status_code'])) {
         return null;
     }
-    
+
     $status = $_SESSION['license_status_code'];
-    
+
+    if ($status === 'offline_warning') {
+        return $_SESSION['license_message'] ?? "⚠️ WARNING: Working in offline mode. License verification failed.";
+    }
+
+    if ($status === 'offline_mode') {
+        return $_SESSION['license_message'] ?? "ℹ️ INFO: Working in offline mode. Attempting to reconnect...";
+    }
+
     if ($status === 'grace_period') {
-        $end_date = isset($_SESSION['license_grace_period_end']) 
+        $end_date = isset($_SESSION['license_grace_period_end'])
             ? date('Y-m-d H:i', $_SESSION['license_grace_period_end'])
             : 'unknown';
         return "⚠️ License expired! Grace period ends: {$end_date}. Application will be disabled after grace period.";
     }
-    
+
     if ($status === 'active' && isset($_SESSION['license_expires_at'])) {
         $expires = strtotime($_SESSION['license_expires_at']);
         $days_left = floor(($expires - time()) / 86400);
-        
+
         if ($days_left <= 7 && $days_left > 0) {
             return "⚠️ License expires in {$days_left} days. Please renew soon.";
         }
     }
-    
+
     return null;
 }
 

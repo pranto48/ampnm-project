@@ -49,8 +49,8 @@ if (empty($app_license_key) && $current_page !== 'license_setup.php') {
     exit;
 }
 
-// If license is disabled (grace period over, revoked, etc.), redirect to license_expired.php
-if ($license_status_code === 'disabled' && $current_page !== 'license_expired.php') {
+// If license is disabled (grace period over, revoked, offline expired, etc.), redirect to license_expired.php
+if (in_array($license_status_code, ['disabled', 'offline_expired']) && $current_page !== 'license_expired.php') {
     header('Location: license_expired.php');
     exit;
 }

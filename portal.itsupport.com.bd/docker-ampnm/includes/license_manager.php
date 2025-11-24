@@ -2,8 +2,14 @@
 // This file is included by auth_check.php and assumes session is started and config.php is loaded.
 
 // Define how often to re-verify the license with the portal (in seconds)
-define('LICENSE_VERIFICATION_INTERVAL', 300); // 5 minutes
+define('LICENSE_VERIFICATION_INTERVAL', 300); // 5 minutes - try to verify every 5 minutes
 define('LICENSE_GRACE_PERIOD_DAYS', 7); // 7 days grace period after expiry
+
+// --- OFFLINE MODE CONFIGURATION ---
+// Maximum days the application can run without connecting to portal
+define('LICENSE_OFFLINE_WARNING_DAYS', 9); // Show warning after 9 days offline
+define('LICENSE_OFFLINE_MAX_DAYS', 30); // Disable after 30 days offline
+define('LICENSE_OFFLINE_LOCKOUT_DAYS', 20); // 20 days from warning (9 + 20 = 29 total before lockout)
 
 // --- Encryption/Decryption Configuration ---
 // NOTE: This key MUST match the key used in the portal's verify_license.php
@@ -202,12 +208,47 @@ function verifyLicenseWithPortal() {
         $error = error_get_last();
         $error_message = $error['message'] ?? 'Unknown connection error.';
         error_log("LICENSE_ERROR: License server unreachable via file_get_contents. Error: {$error_message}");
-        $_SESSION['license_status_code'] = 'portal_unreachable';
-        $_SESSION['license_message'] = "Could not connect to license server. Network/DNS error: {$error_message}.";
-        $_SESSION['license_max_devices'] = 0;
-        $_SESSION['license_expires_at'] = null;
-        $_SESSION['license_last_verified'] = time();
-        return;
+
+        // OFFLINE MODE SUPPORT
+        // Track when we last successfully connected to portal
+        $last_successful_connection = getAppSetting('last_successful_portal_connection');
+
+        if (empty($last_successful_connection)) {
+            // First time unable to connect - set timestamp
+            updateAppSetting('last_successful_portal_connection', time());
+            $last_successful_connection = time();
+        }
+
+        $days_offline = floor((time() - $last_successful_connection) / 86400);
+
+        // Allow offline use for up to 30 days with warnings
+        if ($days_offline >= LICENSE_OFFLINE_MAX_DAYS) {
+            // Been offline for 30+ days - disable application
+            $_SESSION['license_status_code'] = 'offline_expired';
+            $_SESSION['license_message'] = "Application disabled: Unable to verify license for {$days_offline} days. Maximum offline period (30 days) exceeded. Please restore internet connection.";
+            $_SESSION['license_max_devices'] = 0;
+            $_SESSION['license_expires_at'] = null;
+            $_SESSION['license_last_verified'] = time();
+            error_log("LICENSE_ERROR: Offline period exceeded ({$days_offline} days). Application disabled.");
+            return;
+        } elseif ($days_offline >= LICENSE_OFFLINE_WARNING_DAYS) {
+            // Been offline for 9+ days - show warning but allow use
+            $days_remaining = LICENSE_OFFLINE_MAX_DAYS - $days_offline;
+            $_SESSION['license_status_code'] = 'offline_warning';
+            $_SESSION['license_message'] = "⚠️ WARNING: Cannot connect to license server for {$days_offline} days. Application will be disabled in {$days_remaining} days if connection is not restored.";
+            // Keep existing license data if available
+            $_SESSION['license_last_verified'] = time();
+            error_log("LICENSE_WARNING: Offline for {$days_offline} days. {$days_remaining} days remaining.");
+            return;
+        } else {
+            // Less than 9 days offline - allow normal use with info message
+            $_SESSION['license_status_code'] = 'offline_mode';
+            $_SESSION['license_message'] = "Working in offline mode (Day {$days_offline}/30). Trying to reconnect to license server...";
+            // Keep existing license data if available
+            $_SESSION['license_last_verified'] = time();
+            error_log("LICENSE_INFO: Offline mode active. Day {$days_offline} of 30.");
+            return;
+        }
     }
 
     $result = decryptLicenseData($encrypted_response);
@@ -221,6 +262,9 @@ function verifyLicenseWithPortal() {
         $_SESSION['license_last_verified'] = time();
         return;
     }
+
+    // Successful portal connection - reset offline counter
+    updateAppSetting('last_successful_portal_connection', time());
 
     // Update session with actual license data
     $_SESSION['license_status_code'] = $result['actual_status'] ?? 'invalid';

@@ -60,6 +60,7 @@ $current_page = basename($_SERVER['PHP_SELF']); // Get current page filename
                             <a href="users.php" class="nav-link"><i class="fas fa-users-cog fa-fw mr-2"></i>Users</a>
                             <a href="license_management.php" class="nav-link"><i class="fas fa-id-card fa-fw mr-2"></i>License</a>
                         <?php endif; ?>
+                        <a href="documentation.php" class="nav-link"><i class="fas fa-book fa-fw mr-2"></i>Help</a>
                         <a href="logout.php" class="nav-link"><i class="fas fa-sign-out-alt fa-fw mr-2"></i>Logout</a>
                     </div>
                 </div>
