@@ -8,17 +8,45 @@ if (isCustomerLoggedIn()) {
 
 $error_message = '';
 
+// Generate captcha if not exists in session
+if (!isset($_SESSION['captcha_answer'])) {
+    $num1 = rand(1, 10);
+    $num2 = rand(1, 10);
+    $_SESSION['captcha_num1'] = $num1;
+    $_SESSION['captcha_num2'] = $num2;
+    $_SESSION['captcha_answer'] = $num1 + $num2;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    $captcha_response = trim($_POST['captcha'] ?? '');
 
     if (empty($email) || empty($password)) {
         $error_message = 'Email and password are required.';
+    } elseif (empty($captcha_response)) {
+        $error_message = 'Please solve the math problem.';
+    } elseif ((int)$captcha_response !== (int)$_SESSION['captcha_answer']) {
+        $error_message = 'Incorrect answer to math problem. Please try again.';
+        // Regenerate captcha
+        $num1 = rand(1, 10);
+        $num2 = rand(1, 10);
+        $_SESSION['captcha_num1'] = $num1;
+        $_SESSION['captcha_num2'] = $num2;
+        $_SESSION['captcha_answer'] = $num1 + $num2;
     } else {
         if (authenticateCustomer($email, $password)) {
+            // Clear captcha on successful login
+            unset($_SESSION['captcha_answer'], $_SESSION['captcha_num1'], $_SESSION['captcha_num2']);
             redirectToDashboard();
         } else {
             $error_message = 'Invalid email or password.';
+            // Regenerate captcha on failed login
+            $num1 = rand(1, 10);
+            $num2 = rand(1, 10);
+            $_SESSION['captcha_num1'] = $num1;
+            $_SESSION['captcha_num2'] = $num2;
+            $_SESSION['captcha_answer'] = $num1 + $num2;
         }
     }
 }
@@ -57,6 +85,21 @@ portal_header("Login - IT Support BD Portal");
                     <input id="password" name="password" type="password" autocomplete="current-password" required
                            class="form-glass-input"
                            placeholder="••••••••">
+                </div>
+
+                <div class="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border border-blue-500/30 rounded-lg p-4">
+                    <label for="captcha" class="block text-sm text-gray-300 mb-2 flex items-center">
+                        <i class="fas fa-robot mr-2 text-cyan-400"></i>Security Check
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <div class="bg-slate-800 px-4 py-2 rounded-lg border border-slate-600 font-mono text-xl text-white">
+                            <?= $_SESSION['captcha_num1'] ?> + <?= $_SESSION['captcha_num2'] ?> = ?
+                        </div>
+                        <input id="captcha" name="captcha" type="number" required
+                               class="form-glass-input w-24"
+                               placeholder="?" min="0" max="20">
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2"><i class="fas fa-shield-alt mr-1"></i>This prevents automated bot attacks</p>
                 </div>
 
                 <button type="submit" class="btn-glass-primary w-full flex justify-center items-center">

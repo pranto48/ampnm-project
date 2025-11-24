@@ -498,3 +498,68 @@ function admin_footer() {
     </body>
     </html>';
 }
+/**
+ * Send email using portal SMTP settings
+ */
+function send_portal_email($to, $subject, $message) {
+    try {
+        $pdo = get_db_connection();
+        
+        // Load SMTP settings
+        $stmt = $pdo->query("SELECT setting_key, setting_value FROM portal_settings WHERE setting_key LIKE 'smtp_%'");
+        $settings = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
+
+        if (empty($settings['smtp_host'])) {
+            error_log("SMTP not configured");
+            return false;
+        }
+
+        $headers = "From: " . ($settings['smtp_from_name'] ?? 'IT Support BD') . " <" . ($settings['smtp_from_email'] ?? 'noreply@itsupport.com.bd') . ">\r\n";
+        $headers .= "Reply-To: " . ($settings['smtp_from_email'] ?? 'noreply@itsupport.com.bd') . "\r\n";
+        $headers .= "MIME-Version: 1.0\r\n";
+        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+
+        // Convert plain text to HTML
+        $html_message = nl2br(htmlspecialchars($message));
+        $html_message = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                .footer { text-align: center; margin-top: 30px; padding: 20px; color: #666; font-size: 12px; }
+                .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h1>IT Support Bangladesh</h1>
+                </div>
+                <div class='content'>
+                    {$html_message}
+                </div>
+                <div class='footer'>
+                    <p>&copy; " . date('Y') . " IT Support Bangladesh. All rights reserved.</p>
+                    <p>Portal: <a href='https://portal.itsupport.com.bd'>portal.itsupport.com.bd</a></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+
+        // Use mail() function (requires server SMTP configuration)
+        // For production, consider using PHPMailer library
+        return mail($to, $subject, $html_message, $headers);
+    } catch (Exception $e) {
+        error_log("Email send error: " . $e->getMessage());
+        return false;
+    }
+}
