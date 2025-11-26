@@ -1,15 +1,16 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { NetworkDevice } from '@/services/networkDeviceService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
+import { IconPicker } from './IconPicker';
 
 const deviceSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -33,9 +34,9 @@ interface DeviceFormProps {
   isEditing?: boolean;
 }
 
-const icons = ['server', 'router', 'printer', 'laptop', 'wifi', 'database', 'box', 'camera', 'cloud', 'firewall', 'ipphone', 'mobile', 'nas', 'rack', 'punchdevice', 'radio-tower', 'switch', 'tablet', 'other'];
-
 export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceFormProps) => {
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  
   const form = useForm<z.infer<typeof deviceSchema>>({
     resolver: zodResolver(deviceSchema),
     defaultValues: {
@@ -114,22 +115,30 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
               name="icon"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Icon</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an icon" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {icons.map((icon) => (
-                        <SelectItem key={icon} value={icon} className="capitalize">
-                          {icon.replace(/-/g, ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Device Icon</FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={() => setIconPickerOpen(true)}
+                      >
+                        <span className="mr-2">Current:</span>
+                        <span className="capitalize">{field.value.replace(/-/g, ' ')}</span>
+                      </Button>
+                      <FormDescription>
+                        Click to browse icon gallery and select a device icon
+                      </FormDescription>
+                    </div>
+                  </FormControl>
                   <FormMessage />
+                  <IconPicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    open={iconPickerOpen}
+                    onOpenChange={setIconPickerOpen}
+                  />
                 </FormItem>
               )}
             />
