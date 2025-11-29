@@ -185,6 +185,19 @@ try {
             FOREIGN KEY (`device_id`) REFERENCES `devices`(`id`) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
+        "CREATE TABLE IF NOT EXISTS `network_graphs` (
+            `id` INT(10) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            `user_id` INT(6) UNSIGNED NOT NULL,
+            `name` VARCHAR(150) NOT NULL,
+            `category` VARCHAR(100) NULL,
+            `base_url` VARCHAR(500) NOT NULL,
+            `param_name` VARCHAR(50) NOT NULL DEFAULT 'range',
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+            INDEX `idx_network_graphs_user` (`user_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
         // New table for SMTP settings
         "CREATE TABLE IF NOT EXISTS `smtp_settings` (
             `id` INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
