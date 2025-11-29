@@ -53,9 +53,9 @@ function enforceLicenseValidation() {
     // Verify license hasn't been modified
     if (isset($_SESSION['license_last_verified'])) {
         $time_since_check = time() - $_SESSION['license_last_verified'];
-        
-        // Force re-verification every 5 minutes
-        if ($time_since_check > 300) {
+
+        // Force re-verification once per day to avoid frequent redirects
+        if ($time_since_check > 86400) {
             // Re-verify license
             if (function_exists('verifyLicenseWithPortal')) {
                 verifyLicenseWithPortal();
