@@ -128,7 +128,7 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                         <span className="capitalize">{field.value.replace(/-/g, ' ')}</span>
                       </Button>
                       <FormDescription>
-                        Click to browse icon gallery and select a device icon
+                        Browse the open-source icon gallery, filter by category, and pick the device icon you prefer.
                       </FormDescription>
                     </div>
                   </FormControl>
