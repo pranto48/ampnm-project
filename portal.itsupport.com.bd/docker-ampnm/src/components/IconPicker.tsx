@@ -55,13 +55,13 @@ interface IconOption {
   category: string;
 }
 
-interface IconCategory {
+export interface IconCategory {
   id: string;
   label: string;
   icons: IconOption[];
 }
 
-const ICON_CATEGORIES: IconCategory[] = [
+export const ICON_CATEGORIES: IconCategory[] = [
   {
     id: 'connectivity',
     label: 'Connectivity',
@@ -113,7 +113,7 @@ const ICON_CATEGORIES: IconCategory[] = [
   },
 ];
 
-const allIcons = ICON_CATEGORIES.flatMap(category => category.icons);
+export const ICON_OPTIONS = ICON_CATEGORIES.flatMap(category => category.icons);
 
 export const IconPicker = ({ value, onChange, open, onOpenChange }: IconPickerProps) => {
   const [category, setCategory] = useState<string>('all');
@@ -122,7 +122,7 @@ export const IconPicker = ({ value, onChange, open, onOpenChange }: IconPickerPr
   const filteredIcons = useMemo(() => {
     const term = search.toLowerCase();
 
-    return allIcons.filter(icon => {
+    return ICON_OPTIONS.filter(icon => {
       const matchesCategory = category === 'all' || icon.category === category;
       const matchesSearch =
         term === '' ||

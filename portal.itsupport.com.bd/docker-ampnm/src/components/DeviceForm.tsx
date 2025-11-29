@@ -10,7 +10,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { NetworkDevice } from '@/services/networkDeviceService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { IconPicker } from './IconPicker';
+import { IconPicker, ICON_OPTIONS } from './IconPicker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const deviceSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -127,8 +128,21 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                         <span className="mr-2">Current:</span>
                         <span className="capitalize">{field.value.replace(/-/g, ' ')}</span>
                       </Button>
+                      <Select value={field.value} onValueChange={value => field.onChange(value)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pick an icon" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ICON_OPTIONS.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        Browse the open-source icon gallery, filter by category, and pick the device icon you prefer.
+                        Browse the open-source icon gallery, filter by category, and pick the device icon you prefer. You can also
+                        quickly choose from the dropdown list above if the gallery dialog is not visible.
                       </FormDescription>
                     </div>
                   </FormControl>
