@@ -20,7 +20,8 @@
     <script src="assets/js/map/mapManager.js"></script>
     <script src="assets/js/map/network.js"></script>
     <script src="assets/js/map.js"></script>
-    
+
+    <script src="assets/js/network_graphs.js"></script>
     <script src="assets/js/users.js"></script>
     <script src="assets/js/status_logs.js"></script>
     <script src="assets/js/email_notifications.js"></script>
@@ -51,6 +52,37 @@
             const linkPage = link.getAttribute('href');
             if (linkPage === page || (page === 'index.php' && linkPage === '/')) {
                 link.classList.add('bg-slate-700', 'text-white');
+
+                const parentGroup = link.closest('.nav-group');
+                if (parentGroup) {
+                    parentGroup.classList.add('open');
+                }
+            }
+        });
+
+        const navGroups = document.querySelectorAll('.nav-group');
+        navGroups.forEach(group => {
+            const toggle = group.querySelector('.nav-group-toggle');
+            const items = group.querySelector('.nav-group-items');
+
+            if (!toggle || !items) return;
+
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+
+                navGroups.forEach(g => {
+                    if (g !== group) {
+                        g.classList.remove('open');
+                    }
+                });
+
+                group.classList.toggle('open');
+            });
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.nav-group')) {
+                navGroups.forEach(group => group.classList.remove('open'));
             }
         });
 
@@ -76,7 +108,10 @@
 
         // Also close menu if a nav link is clicked
         mainNav.addEventListener('click', (e) => {
-            if (e.target.closest('.nav-link')) {
+            const clickedNavLink = e.target.closest('.nav-link');
+            const isGroupToggle = e.target.closest('.nav-group-toggle');
+
+            if (clickedNavLink && !isGroupToggle) {
                 closeMobileMenu();
             }
         });
@@ -106,6 +141,8 @@
             initStatusLogs();
         } else if (page === 'email_notifications.php') {
             initEmailNotifications();
+        } else if (page === 'network_graphs.php') {
+            initNetworkGraphs();
         }
     });
     </script>
