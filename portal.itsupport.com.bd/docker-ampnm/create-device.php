@@ -99,12 +99,51 @@ include 'header.php';
                             'radio-tower' => 'Radio Tower', 'router' => 'Router', 'server' => 'Server', 'switch' => 'Switch',
                             'tablet' => 'Tablet', 'wifi-router' => 'WiFi Router', 'other' => 'Other'
                         ];
+
+                        $icon_gallery = [
+                            'server' => ['label' => 'Server', 'icon' => 'fa-server'],
+                            'router' => ['label' => 'Router', 'icon' => 'fa-network-wired'],
+                            'switch' => ['label' => 'Switch', 'icon' => 'fa-ethernet'],
+                            'wifi-router' => ['label' => 'WiFi Router', 'icon' => 'fa-wifi'],
+                            'radio-tower' => ['label' => 'Radio Tower', 'icon' => 'fa-tower-broadcast'],
+                            'firewall' => ['label' => 'Firewall', 'icon' => 'fa-shield-halved'],
+                            'cloud' => ['label' => 'Cloud', 'icon' => 'fa-cloud'],
+                            'database' => ['label' => 'Database', 'icon' => 'fa-database'],
+                            'rack' => ['label' => 'Rack', 'icon' => 'fa-cubes'],
+                            'printer' => ['label' => 'Printer', 'icon' => 'fa-print'],
+                            'nas' => ['label' => 'NAS', 'icon' => 'fa-hdd'],
+                            'camera' => ['label' => 'Camera', 'icon' => 'fa-video'],
+                            'ipphone' => ['label' => 'IP Phone', 'icon' => 'fa-phone'],
+                            'punchdevice' => ['label' => 'Punch Device', 'icon' => 'fa-plug'],
+                            'laptop' => ['label' => 'Laptop/PC', 'icon' => 'fa-laptop-code'],
+                            'tablet' => ['label' => 'Tablet', 'icon' => 'fa-tablet-screen-button'],
+                            'mobile' => ['label' => 'Mobile', 'icon' => 'fa-mobile-screen'],
+                            'box' => ['label' => 'Box (Group)', 'icon' => 'fa-box'],
+                            'other' => ['label' => 'Other', 'icon' => 'fa-circle'],
+                        ];
+
                         foreach ($device_types as $value => $label) {
                             $selected = (($_POST['type'] ?? 'server') === $value) ? 'selected' : '';
                             echo "<option value=\"{$value}\" {$selected}>{$label}</option>";
                         }
                         ?>
                     </select>
+                    <div class="mt-3 bg-slate-900/60 border border-slate-700 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-xs text-slate-400">Tap an icon to sync the dropdown if the list is hidden.</p>
+                            <span class="text-[10px] uppercase tracking-wide text-slate-500">Icon Gallery</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="iconGallery">
+                            <?php foreach ($icon_gallery as $value => $meta): $active = (($_POST['type'] ?? 'server') === $value); ?>
+                                <button type="button" class="icon-gallery-btn w-full text-left px-3 py-2 rounded-md border <?= $active ? 'border-cyan-500 ring-2 ring-cyan-500/50 bg-slate-800' : 'border-slate-700 hover:border-cyan-500 hover:text-cyan-200 bg-slate-900' ?>" data-icon-choice="<?= htmlspecialchars($value) ?>">
+                                    <span class="flex items-center gap-2">
+                                        <i class="fas <?= htmlspecialchars($meta['icon']) ?> text-cyan-400"></i>
+                                        <span class="text-sm text-slate-200"><?= htmlspecialchars($meta['label']) ?></span>
+                                    </span>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label for="map_id" class="block text-sm font-medium text-slate-400 mb-1">Map Assignment (Optional)</label>
@@ -191,5 +230,39 @@ include 'header.php';
         </div>
     </div>
 </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const typeSelect = document.getElementById('type');
+    const buttons = document.querySelectorAll('.icon-gallery-btn');
+
+    const syncSelection = (value) => {
+        if (typeSelect) {
+            typeSelect.value = value;
+        }
+        buttons.forEach((btn) => {
+            if (btn.dataset.iconChoice === value) {
+                btn.classList.add('border-cyan-500', 'ring-2', 'ring-cyan-500/50', 'bg-slate-800');
+                btn.classList.remove('border-slate-700');
+            } else {
+                btn.classList.remove('border-cyan-500', 'ring-2', 'ring-cyan-500/50', 'bg-slate-800');
+                btn.classList.add('border-slate-700');
+            }
+        });
+    };
+
+    buttons.forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            syncSelection(btn.dataset.iconChoice);
+        });
+    });
+
+    if (typeSelect) {
+        typeSelect.addEventListener('change', () => syncSelection(typeSelect.value));
+        syncSelection(typeSelect.value || buttons[0]?.dataset.iconChoice);
+    }
+});
+</script>
 
 <?php include 'footer.php'; ?>
