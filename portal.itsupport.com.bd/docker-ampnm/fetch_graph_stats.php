@@ -21,30 +21,51 @@ if ($graphUrl === '' || !filter_var($graphUrl, FILTER_VALIDATE_URL)) {
     exit;
 }
 
-$context = stream_context_create([
-    'http' => [
-        'timeout' => 5,
-        'follow_location' => 1,
-        'header' => "User-Agent: DockerGraphProbe/1.0\r\n",
-    ],
-    'https' => [
-        'timeout' => 5,
-        'follow_location' => 1,
-        'header' => "User-Agent: DockerGraphProbe/1.0\r\n",
-    ],
-]);
+$response = null;
 
-$response = @file_get_contents($graphUrl, false, $context);
+// Prefer cURL for better TLS/certificate compatibility.
+if (function_exists('curl_init')) {
+    $ch = curl_init($graphUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TIMEOUT => 6,
+        CURLOPT_USERAGENT => 'DockerGraphProbe/1.0',
+    ]);
+    $response = curl_exec($ch);
+    curl_close($ch);
+}
 
-if ($response === false) {
+// Fallback to file_get_contents if cURL is unavailable or failed.
+if ($response === null || $response === false) {
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 6,
+            'follow_location' => 1,
+            'header' => "User-Agent: DockerGraphProbe/1.0\r\n",
+        ],
+        'https' => [
+            'timeout' => 6,
+            'follow_location' => 1,
+            'header' => "User-Agent: DockerGraphProbe/1.0\r\n",
+        ],
+    ]);
+
+    $response = @file_get_contents($graphUrl, false, $context);
+}
+
+if ($response === false || $response === null) {
     http_response_code(502);
     echo json_encode(['error' => 'Unable to reach the graph endpoint.']);
     exit;
 }
 
 $extractStat = function (string $needle) use ($response) {
-    $pattern = sprintf('/%s\s*:?\s*([^;<]*)/i', preg_quote($needle, '/'));
-    if (preg_match($pattern, $response, $matches)) {
+    // Strip tags to handle Mikrotik HTML output, then search for the label.
+    $plain = strip_tags($response);
+    $pattern = sprintf('/%s\s*:?\s*([^;\n]+)/i', preg_quote($needle, '/'));
+
+    if (preg_match($pattern, $plain, $matches)) {
         return trim($matches[1]);
     }
     return null;

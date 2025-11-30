@@ -65,6 +65,14 @@ MapApp.ui = {
         }).join('');
     },
 
+    openDeviceModal: (deviceId) => {
+        if (!deviceId) return;
+
+        // Use the existing edit-device page so admins can change icons, names, and IPs.
+        // Keep navigation simple to avoid modal dependencies that were removed from the PHP map.
+        window.location.href = `edit-device.php?id=${encodeURIComponent(deviceId)}&return=map`;
+    },
+
     openEdgeModal: (edgeId) => {
         if (window.userRole !== 'admin') {
             window.notyf.error('You do not have permission to edit connections.');
