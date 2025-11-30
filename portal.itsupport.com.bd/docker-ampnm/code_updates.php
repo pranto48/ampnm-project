@@ -2,13 +2,26 @@
 require_once 'includes/auth_check.php';
 include 'header.php';
 
-$defaultRepoPath = realpath(__DIR__);
+$autoDetectedRepoPath = (function (string $startPath): ?string {
+    $current = realpath($startPath);
+    while ($current && $current !== dirname($current)) {
+        $gitDir = $current . DIRECTORY_SEPARATOR . '.git';
+        if (is_dir($gitDir) || is_file($gitDir)) {
+            return $current;
+        }
+        $current = dirname($current);
+    }
+    return null;
+})(__DIR__);
+
+$defaultRepoPath = $autoDetectedRepoPath ?? realpath(__DIR__);
 $repoPath = isset($_POST['repo_path']) && trim($_POST['repo_path']) !== ''
     ? rtrim(trim($_POST['repo_path']), '/\\')
     : $defaultRepoPath;
 $gitBinary = trim(shell_exec('which git 2>/dev/null'));
 $gitAvailable = $gitBinary !== '';
-$isGitRepo = $gitAvailable && is_dir($repoPath . DIRECTORY_SEPARATOR . '.git');
+$gitMarker = $repoPath . DIRECTORY_SEPARATOR . '.git';
+$isGitRepo = $gitAvailable && (is_dir($gitMarker) || is_file($gitMarker));
 
 $action = $_POST['action'] ?? null;
 $statusMessage = '';
@@ -91,7 +104,7 @@ if ($action === 'update' && $isGitRepo) {
         <?php elseif (!$isGitRepo): ?>
             <div class="bg-yellow-500/10 border border-yellow-500/40 text-yellow-200 rounded-lg p-4 mb-6">
                 <p class="font-semibold mb-1">Repository not detected at <code><?php echo htmlspecialchars($repoPath); ?></code>.</p>
-                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below.</p>
+                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below. We automatically scan parent folders for <code>.git</code> (detected: <code><?php echo htmlspecialchars($autoDetectedRepoPath ?? 'none'); ?></code>).</p>
             </div>
         <?php endif; ?>
 
@@ -190,7 +203,7 @@ if ($action === 'update' && $isGitRepo) {
                 <div class="bg-slate-800 border border-slate-700 rounded-lg p-5 shadow-lg">
                     <h3 class="text-lg font-semibold text-white mb-3">How it works</h3>
                     <ul class="list-disc list-inside space-y-2 text-sm text-slate-300">
-                        <li>Targets the Docker app at <code>portal.itsupport.com.bd/docker-ampnm</code> (current container path: <code><?php echo htmlspecialchars($defaultRepoPath); ?></code>).</li>
+                        <li>Targets the Docker app at <code>portal.itsupport.com.bd/docker-ampnm</code> (current container path: <code><?php echo htmlspecialchars($defaultRepoPath); ?></code>). We auto-detect the nearest <code>.git</code> above this folder and use it as the default path.</li>
                         <li>Checks out updates from the official repository: <code>https://github.com/pranto48/ampnm-project.git</code>.</li>
                         <li>Uses <span class="font-semibold">fetch</span> to compare and <span class="font-semibold">pull</span> to apply new versions without overwriting local, uncommitted changes.</li>
                     </ul>
