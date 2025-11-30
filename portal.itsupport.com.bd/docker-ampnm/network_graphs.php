@@ -197,8 +197,26 @@ foreach ($graphs as $graph) {
                             <div class="flex-1 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
                                 <iframe class="graph-frame w-full h-48" src="<?= htmlspecialchars($daily_url) ?>" loading="lazy"></iframe>
                             </div>
-                            <div class="mt-3 text-right">
-                                <a class="graph-open-link text-cyan-400 hover:text-cyan-300 text-sm" href="<?= htmlspecialchars($daily_url) ?>" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt mr-1"></i>Open graph</a>
+                            <div class="mt-3 flex flex-col gap-2 text-sm text-slate-300">
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <span class="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-md px-3 py-1">
+                                        <i class="fas fa-arrow-down text-emerald-400"></i>
+                                        <span class="text-slate-400">Current In:</span>
+                                        <span data-current-in class="font-semibold text-emerald-300">—</span>
+                                    </span>
+                                    <span class="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-md px-3 py-1">
+                                        <i class="fas fa-arrow-up text-cyan-400"></i>
+                                        <span class="text-slate-400">Current Out:</span>
+                                        <span data-current-out class="font-semibold text-cyan-300">—</span>
+                                    </span>
+                                    <button class="refresh-graph-stats text-xs px-3 py-1 bg-slate-700 text-white rounded-md hover:bg-slate-600 transition">
+                                        <i class="fas fa-sync-alt mr-1"></i>Refresh
+                                    </button>
+                                    <span class="graph-stats-status text-xs text-slate-500"></span>
+                                </div>
+                                <div class="text-right">
+                                    <a class="graph-open-link text-cyan-400 hover:text-cyan-300 text-sm" href="<?= htmlspecialchars($daily_url) ?>" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt mr-1"></i>Open graph</a>
+                                </div>
                             </div>
                         </div>
                         <?php endforeach; ?>
