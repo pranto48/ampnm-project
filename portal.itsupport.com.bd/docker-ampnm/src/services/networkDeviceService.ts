@@ -17,17 +17,22 @@ export interface NetworkDevice {
   id?: string;
   user_id?: string;
   name: string;
-  ip_address?: string; // Changed to optional
-  position_x?: number; // Changed to optional
-  position_y?: number; // Changed to optional
-  icon: string; // Changed to type
+  ip_address?: string;
+  ip?: string;
+  position_x?: number;
+  position_y?: number;
+  x?: number;
+  y?: number;
+  icon: string;
+  type?: string;
+  icon_url?: string | null;
   status?: 'online' | 'offline' | 'unknown' | 'warning' | 'critical';
   ping_interval?: number;
   icon_size?: number;
   name_text_size?: number;
   monitor_method?: 'ping' | 'port';
-  last_ping?: string | null; // Corresponds to last_seen
-  last_ping_result?: boolean | null; // Not directly stored, derived from status
+  last_ping?: string | null;
+  last_ping_result?: boolean | null;
   check_port?: number;
   description?: string;
   warning_latency_threshold?: number;
@@ -37,6 +42,15 @@ export interface NetworkDevice {
   show_live_ping?: boolean;
   map_id?: string;
 }
+
+const normalizeDevice = (device: any): NetworkDevice => ({
+  ...device,
+  icon: device.icon || device.type || 'server',
+  ip_address: device.ip_address || device.ip || undefined,
+  position_x: device.position_x ?? device.x,
+  position_y: device.position_y ?? device.y,
+  icon_url: device.icon_url ?? null,
+});
 
 export interface NetworkEdge {
   id?: string;
@@ -73,7 +87,7 @@ const callApi = async <T>(action: string, method: 'GET' | 'POST', body?: any): P
 
 export const getDevices = async (): Promise<NetworkDevice[]> => {
   const result = await callApi<{ devices: NetworkDevice[] }>('get_devices', 'GET');
-  return result.devices || [];
+  return (result.devices || []).map(normalizeDevice);
 };
 
 export const addDevice = async (device: Omit<NetworkDevice, 'user_id' | 'status' | 'last_ping' | 'last_ping_result'>): Promise<NetworkDevice> => {
@@ -99,7 +113,7 @@ export const addDevice = async (device: Omit<NetworkDevice, 'user_id' | 'status'
     show_live_ping: device.show_live_ping,
   };
   const result = await callApi<NetworkDevice>('create_device', 'POST', payload);
-  return result;
+  return normalizeDevice(result);
 };
 
 export const updateDevice = async (id: string, updates: Partial<NetworkDevice>): Promise<NetworkDevice> => {
@@ -125,7 +139,7 @@ export const updateDevice = async (id: string, updates: Partial<NetworkDevice>):
   if (updates.status !== undefined) payload.status = updates.status; // For status updates
 
   const result = await callApi<NetworkDevice>('update_device', 'POST', { id, updates: payload });
-  return result;
+  return normalizeDevice(result);
 };
 
 export const updateDeviceStatusByIp = async (ip_address: string, status: 'online' | 'offline'): Promise<NetworkDevice> => {

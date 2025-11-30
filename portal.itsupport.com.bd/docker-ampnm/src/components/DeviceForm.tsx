@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { NetworkDevice } from '@/services/networkDeviceService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { IconPicker } from './IconPicker';
+import { IconPicker, ICON_OPTIONS } from './IconPicker';
 
 const deviceSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -36,13 +36,18 @@ interface DeviceFormProps {
 
 export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceFormProps) => {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  
+
+  const defaultIcon = useMemo(() => {
+    const requestedIcon = initialData?.icon || initialData?.type;
+    return ICON_OPTIONS.some(option => option.value === requestedIcon) ? requestedIcon : 'server';
+  }, [initialData]);
+
   const form = useForm<z.infer<typeof deviceSchema>>({
     resolver: zodResolver(deviceSchema),
     defaultValues: {
       name: initialData?.name || '',
       ip_address: initialData?.ip_address || '',
-      icon: initialData?.icon || 'server',
+      icon: defaultIcon,
       description: initialData?.description || '',
       check_port: initialData?.check_port || undefined,
       ping_interval: initialData?.ping_interval || undefined,
@@ -127,8 +132,20 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                         <span className="mr-2">Current:</span>
                         <span className="capitalize">{field.value.replace(/-/g, ' ')}</span>
                       </Button>
+                      <select
+                        value={field.value}
+                        onChange={event => field.onChange(event.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        {ICON_OPTIONS.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                       <FormDescription>
-                        Click to browse icon gallery and select a device icon
+                        Browse the open-source icon gallery, filter by category, and pick the device icon you prefer. You can also
+                        quickly choose from the dropdown list above if the gallery dialog is not visible.
                       </FormDescription>
                     </div>
                   </FormControl>

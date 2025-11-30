@@ -1,340 +1,213 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useMemo, useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { NetworkDevice } from '@/services/networkDeviceService';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Link } from 'react-router-dom';
-import { IconPicker } from './IconPicker';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Box,
+  Camera,
+  Check,
+  Cloud,
+  Database,
+  HardDrive,
+  Laptop,
+  LucideIcon,
+  Phone,
+  Plug,
+  Printer,
+  Radio,
+  Router,
+  Server,
+  ServerRack,
+  Shield,
+  Smartphone,
+  Switch,
+  Tablet,
+  Wifi,
+} from 'lucide-react';
 
-const deviceSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  ip_address: z.string().optional().nullable(),
-  icon: z.string().min(1, 'Icon is required'),
-  description: z.string().optional().nullable(),
-  check_port: z.coerce.number().int().positive().optional().nullable(),
-  ping_interval: z.coerce.number().int().positive().optional().nullable(),
-  icon_size: z.coerce.number().int().min(20).max(100).optional().nullable(),
-  name_text_size: z.coerce.number().int().min(8).max(24).optional().nullable(),
-  warning_latency_threshold: z.coerce.number().int().positive().optional().nullable(),
-  warning_packetloss_threshold: z.coerce.number().int().positive().max(100).optional().nullable(),
-  critical_latency_threshold: z.coerce.number().int().positive().optional().nullable(),
-  critical_packetloss_threshold: z.coerce.number().int().positive().max(100).optional().nullable(),
-  show_live_ping: z.boolean().default(false),
-});
-
-interface DeviceFormProps {
-  initialData?: Partial<NetworkDevice>;
-  onSubmit: (device: Omit<NetworkDevice, 'id' | 'position_x' | 'position_y' | 'user_id'>) => void;
-  isEditing?: boolean;
+interface IconPickerProps {
+  value: string;
+  onChange: (value: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceFormProps) => {
-  const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  
-  const form = useForm<z.infer<typeof deviceSchema>>({
-    resolver: zodResolver(deviceSchema),
-    defaultValues: {
-      name: initialData?.name || '',
-      ip_address: initialData?.ip_address || '',
-      icon: initialData?.icon || 'server',
-      description: initialData?.description || '',
-      check_port: initialData?.check_port || undefined,
-      ping_interval: initialData?.ping_interval || undefined,
-      icon_size: initialData?.icon_size || 50,
-      name_text_size: initialData?.name_text_size || 14,
-      warning_latency_threshold: initialData?.warning_latency_threshold || undefined,
-      warning_packetloss_threshold: initialData?.warning_packetloss_threshold || undefined,
-      critical_latency_threshold: initialData?.critical_latency_threshold || undefined,
-      critical_packetloss_threshold: initialData?.critical_packetloss_threshold || undefined,
-      show_live_ping: initialData?.show_live_ping || false,
-    },
-  });
+interface IconOption {
+  value: string;
+  label: string;
+  Icon: LucideIcon;
+  keywords: string[];
+  category: string;
+}
 
-  const handleSubmit = (values: z.infer<typeof deviceSchema>) => {
-    onSubmit(values);
+export interface IconCategory {
+  id: string;
+  label: string;
+  icons: IconOption[];
+}
+
+export const ICON_CATEGORIES: IconCategory[] = [
+  {
+    id: 'connectivity',
+    label: 'Connectivity',
+    icons: [
+      { value: 'router', label: 'Router', Icon: Router, keywords: ['gateway', 'edge'], category: 'connectivity' },
+      { value: 'switch', label: 'Switch', Icon: Switch, keywords: ['layer2', 'lan'], category: 'connectivity' },
+      { value: 'wifi-router', label: 'WiFi Router', Icon: Wifi, keywords: ['wireless', 'access point'], category: 'connectivity' },
+      { value: 'radio-tower', label: 'Radio Tower', Icon: Radio, keywords: ['wireless bridge', 'ptp'], category: 'connectivity' },
+    ],
+  },
+  {
+    id: 'compute',
+    label: 'Compute & Cloud',
+    icons: [
+      { value: 'server', label: 'Server', Icon: Server, keywords: ['bare metal', 'compute'], category: 'compute' },
+      { value: 'rack', label: 'Rack', Icon: ServerRack, keywords: ['colocation', 'rack'], category: 'compute' },
+      { value: 'cloud', label: 'Cloud', Icon: Cloud, keywords: ['virtual', 'service'], category: 'compute' },
+      { value: 'box', label: 'Appliance', Icon: Box, keywords: ['appliance', 'hub'], category: 'compute' },
+    ],
+  },
+  {
+    id: 'storage',
+    label: 'Storage & Services',
+    icons: [
+      { value: 'database', label: 'Database', Icon: Database, keywords: ['sql', 'data'], category: 'storage' },
+      { value: 'nas', label: 'NAS', Icon: HardDrive, keywords: ['storage', 'backup'], category: 'storage' },
+      { value: 'printer', label: 'Printer', Icon: Printer, keywords: ['print', 'peripheral'], category: 'storage' },
+      { value: 'camera', label: 'Camera', Icon: Camera, keywords: ['surveillance', 'cctv'], category: 'storage' },
+    ],
+  },
+  {
+    id: 'security',
+    label: 'Security & Voice',
+    icons: [
+      { value: 'firewall', label: 'Firewall', Icon: Shield, keywords: ['security', 'gateway'], category: 'security' },
+      { value: 'ipphone', label: 'IP Phone', Icon: Phone, keywords: ['voice', 'sip'], category: 'security' },
+      { value: 'punchdevice', label: 'Punch Device', Icon: Plug, keywords: ['patch', 'punch'], category: 'security' },
+      { value: 'other', label: 'Generic', Icon: Server, keywords: ['other', 'generic'], category: 'security' },
+    ],
+  },
+  {
+    id: 'endpoints',
+    label: 'User Endpoints',
+    icons: [
+      { value: 'laptop', label: 'Laptop', Icon: Laptop, keywords: ['endpoint', 'workstation'], category: 'endpoints' },
+      { value: 'tablet', label: 'Tablet', Icon: Tablet, keywords: ['mobile', 'user'], category: 'endpoints' },
+      { value: 'mobile', label: 'Mobile Phone', Icon: Smartphone, keywords: ['handset', 'user'], category: 'endpoints' },
+    ],
+  },
+];
+
+export const ICON_OPTIONS = ICON_CATEGORIES.flatMap(category => category.icons);
+
+export const IconPicker = ({ value, onChange, open, onOpenChange }: IconPickerProps) => {
+  const [category, setCategory] = useState<string>('all');
+  const [search, setSearch] = useState('');
+
+  const filteredIcons = useMemo(() => {
+    const term = search.toLowerCase();
+
+    return ICON_OPTIONS.filter(icon => {
+      const matchesCategory = category === 'all' || icon.category === category;
+      const matchesSearch =
+        term === '' ||
+        icon.label.toLowerCase().includes(term) ||
+        icon.value.toLowerCase().includes(term) ||
+        icon.keywords.some(keyword => keyword.includes(term));
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [category, search]);
+
+  const categoryLabelMap = useMemo(
+    () => Object.fromEntries(ICON_CATEGORIES.map(item => [item.id, item.label])),
+    [],
+  );
+
+  const handleSelect = (iconValue: string) => {
+    onChange(iconValue);
+    onOpenChange(false);
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>{isEditing ? 'Edit Device' : 'Add New Device'}</CardTitle>
-        <CardDescription>
-          {isEditing ? 'Update the details for your network device.' : 'Add a new device to your network map.'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Device Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Main Router" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Select a device icon</DialogTitle>
+          <DialogDescription>
+            Browse open-source Lucide icons by category or search for a specific device type.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="icon-search">Search icons</Label>
+            <Input
+              id="icon-search"
+              placeholder="Search by name or use-case"
+              value={search}
+              onChange={event => setSearch(event.target.value)}
             />
-            <FormField
-              control={form.control}
-              name="ip_address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>IP Address (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., 192.168.1.1" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="e.g., Router in the main office" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="icon"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Device Icon</FormLabel>
-                  <FormControl>
-                    <div className="space-y-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => setIconPickerOpen(true)}
-                      >
-                        <span className="mr-2">Current:</span>
-                        <span className="capitalize">{field.value.replace(/-/g, ' ')}</span>
-                      </Button>
-                      <FormDescription>
-                        Click to browse icon gallery and select a device icon
-                      </FormDescription>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="icon-category">Icon category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger id="icon-category">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {ICON_CATEGORIES.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <ScrollArea className="mt-2 h-80 pr-2">
+          {filteredIcons.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No icons match your search.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+              {filteredIcons.map(icon => (
+                <Button
+                  key={icon.value}
+                  variant={value === icon.value ? 'default' : 'outline'}
+                  className="h-auto justify-start p-3 text-left"
+                  onClick={() => handleSelect(icon.value)}
+                >
+                  <div className="flex w-full items-center gap-3">
+                    <icon.Icon className="h-5 w-5" />
+                    <div className="flex-1">
+                      <div className="font-medium capitalize leading-tight">{icon.label}</div>
+                      <div className="text-xs text-muted-foreground">{categoryLabelMap[icon.category]}</div>
                     </div>
-                  </FormControl>
-                  <FormMessage />
-                  <IconPicker
-                    value={field.value}
-                    onChange={field.onChange}
-                    open={iconPickerOpen}
-                    onOpenChange={setIconPickerOpen}
-                  />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="check_port"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Service Port (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="e.g., 80 for HTTP (leave blank for ICMP ping)"
-                      {...field}
-                      value={field.value ?? ''}
-                      onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    If set, device status is based on this port. If empty, it will use ICMP (ping).
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="ping_interval"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ping Interval (seconds)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="e.g., 60 (leave blank for no auto ping)"
-                      {...field}
-                      value={field.value ?? ''}
-                      onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="icon_size"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Icon Size (20-100px)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="e.g., 50"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="name_text_size"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name Text Size (8-24px)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="e.g., 14"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-md font-medium">Status Thresholds (Optional)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="warning_latency_threshold"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Warning Latency (ms)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="e.g., 100"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="warning_packetloss_threshold"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Warning Packet Loss (%)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="e.g., 10"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="critical_latency_threshold"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Critical Latency (ms)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="e.g., 500"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="critical_packetloss_threshold"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Critical Packet Loss (%)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="e.g., 50"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-            <FormField
-              control={form.control}
-              name="show_live_ping"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Show live ping status on map
-                    </FormLabel>
-                    <FormDescription>
-                      Display real-time ping latency and TTL directly on the device node.
-                    </FormDescription>
+                    {value === icon.value && <Check className="h-4 w-4" />}
                   </div>
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" asChild>
-                <Link to="/">Cancel</Link>
-              </Button>
-              <Button type="submit">{isEditing ? 'Save Changes' : 'Add Device'}</Button>
+                </Button>
+              ))}
             </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 };
