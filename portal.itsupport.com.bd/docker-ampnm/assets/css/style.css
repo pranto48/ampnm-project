@@ -75,6 +75,46 @@ button:hover, a.hoverable:hover {
     color: #ffffff;
     transform: translateY(-2px) scale(1.02); /* Lift and slightly scale on hover */
 }
+#main-nav .nav-sublink {
+    padding-left: 2.5rem;
+    font-size: 0.8rem;
+}
+.nav-group {
+    position: relative;
+}
+.nav-group-toggle .nav-group-caret {
+    margin-left: 0.5rem;
+    transition: transform 0.2s ease;
+}
+.nav-group.open .nav-group-caret {
+    transform: rotate(180deg);
+}
+.nav-group-items {
+    display: none;
+    flex-direction: column;
+    margin-top: 0.25rem;
+}
+.nav-group.open > .nav-group-items {
+    display: flex;
+}
+@media (min-width: 768px) {
+    .nav-group-items {
+        position: absolute;
+        left: 0;
+        top: calc(100% + 0.25rem);
+        background-color: #0f172a;
+        border: 1px solid #334155;
+        border-radius: 0.75rem;
+        padding: 0.35rem;
+        min-width: 13rem;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+        z-index: 30;
+    }
+    .nav-group-items .nav-link {
+        margin: 0.1rem 0;
+        width: 100%;
+    }
+}
 #main-nav a.bg-slate-700 { /* Active link style */
     background-color: #1e293b;
     color: #22d3ee;

@@ -484,6 +484,56 @@ function initMap() {
     const connectionLegend = document.getElementById('connection-legend');
     const showConnectionLegendBtn = document.getElementById('showConnectionLegend');
     const toggleConnectionLegendBtn = document.getElementById('toggleConnectionLegend');
+    const mapWrapper = document.getElementById('network-map-wrapper');
+
+    const makeDraggable = (element, boundaryContainer) => {
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        const onPointerDown = (event) => {
+            isDragging = true;
+            const rect = element.getBoundingClientRect();
+            offsetX = event.clientX - rect.left;
+            offsetY = event.clientY - rect.top;
+
+            // Switch to top/left positioning for smoother dragging
+            element.style.right = 'auto';
+            element.style.bottom = 'auto';
+            element.style.left = `${rect.left - (boundaryContainer?.getBoundingClientRect().left || 0)}px`;
+            element.style.top = `${rect.top - (boundaryContainer?.getBoundingClientRect().top || 0)}px`;
+
+            element.setPointerCapture(event.pointerId);
+        };
+
+        const onPointerMove = (event) => {
+            if (!isDragging) return;
+            const bounds = boundaryContainer?.getBoundingClientRect();
+            const parentLeft = bounds?.left || 0;
+            const parentTop = bounds?.top || 0;
+            const parentWidth = bounds?.width || window.innerWidth;
+            const parentHeight = bounds?.height || window.innerHeight;
+
+            let newLeft = event.clientX - parentLeft - offsetX;
+            let newTop = event.clientY - parentTop - offsetY;
+
+            // Clamp within container
+            newLeft = Math.max(0, Math.min(newLeft, parentWidth - element.offsetWidth));
+            newTop = Math.max(0, Math.min(newTop, parentHeight - element.offsetHeight));
+
+            element.style.left = `${newLeft}px`;
+            element.style.top = `${newTop}px`;
+        };
+
+        const onPointerUp = (event) => {
+            isDragging = false;
+            element.releasePointerCapture(event.pointerId);
+        };
+
+        element.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+    };
 
     if (showConnectionLegendBtn && connectionLegend && toggleConnectionLegendBtn) {
         showConnectionLegendBtn.addEventListener('click', () => {
@@ -499,6 +549,9 @@ function initMap() {
         // Show legend by default
         connectionLegend.classList.remove('hidden');
         showConnectionLegendBtn.classList.add('hidden');
+
+        // Allow the legend to be dragged anywhere on the map wrapper
+        makeDraggable(connectionLegend, mapWrapper);
     }
 
     // Initial Load

@@ -2,7 +2,8 @@
 // This file is included by auth_check.php and assumes session is started and config.php is loaded.
 
 // Define how often to re-verify the license with the portal (in seconds)
-define('LICENSE_VERIFICATION_INTERVAL', 300); // 5 minutes - try to verify every 5 minutes
+// The Docker app only needs to phone home once per day to stay current.
+define('LICENSE_VERIFICATION_INTERVAL', 86400); // 24 hours between portal verifications
 define('LICENSE_GRACE_PERIOD_DAYS', 7); // 7 days grace period after expiry
 
 // --- OFFLINE MODE CONFIGURATION ---
