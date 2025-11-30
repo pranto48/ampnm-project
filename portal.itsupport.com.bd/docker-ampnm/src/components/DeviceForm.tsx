@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,13 +37,18 @@ interface DeviceFormProps {
 
 export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceFormProps) => {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  
+
+  const defaultIcon = useMemo(() => {
+    const requestedIcon = initialData?.icon || initialData?.type;
+    return ICON_OPTIONS.some(option => option.value === requestedIcon) ? requestedIcon : 'server';
+  }, [initialData]);
+
   const form = useForm<z.infer<typeof deviceSchema>>({
     resolver: zodResolver(deviceSchema),
     defaultValues: {
       name: initialData?.name || '',
       ip_address: initialData?.ip_address || '',
-      icon: initialData?.icon || 'server',
+      icon: defaultIcon,
       description: initialData?.description || '',
       check_port: initialData?.check_port || undefined,
       ping_interval: initialData?.ping_interval || undefined,
