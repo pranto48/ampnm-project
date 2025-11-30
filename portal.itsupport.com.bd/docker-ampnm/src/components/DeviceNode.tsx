@@ -184,11 +184,24 @@ const DeviceNode = ({ data }: { data: any }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => data.onEdit(data.id)}>
+                <DropdownMenuItem
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    data.onEdit(data.id);
+                  }}
+                >
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => data.onDelete(data.id)} className="text-red-500">
+                <DropdownMenuItem
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    data.onDelete(data.id);
+                  }}
+                  className="text-red-500"
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
                 </DropdownMenuItem>
