@@ -49,17 +49,35 @@ $current_page = basename($_SERVER['PHP_SELF']); // Get current page filename
                     </div>
                     <div id="main-nav" class="flex flex-col p-4 space-y-1 md:flex-row md:p-0 md:space-y-0 md:space-x-1 md:ml-10">
                         <a href="index.php" class="nav-link"><i class="fas fa-tachometer-alt fa-fw mr-2"></i>Dashboard</a>
+
+                        <div class="nav-group">
+                            <button type="button" class="nav-link nav-group-toggle">
+                                <span class="flex items-center"><i class="fas fa-network-wired fa-fw mr-2"></i>Network</span>
+                                <i class="fas fa-chevron-down nav-group-caret"></i>
+                            </button>
+                            <div class="nav-group-items">
+                                <a href="map.php" class="nav-link nav-sublink"><i class="fas fa-project-diagram fa-fw mr-2"></i>Map</a>
+                                <a href="network_graphs.php" class="nav-link nav-sublink"><i class="fas fa-chart-line fa-fw mr-2"></i>Network Graphs</a>
+                            </div>
+                        </div>
+
                         <?php if ($user_role === 'admin'): ?>
-                            <a href="devices.php" class="nav-link"><i class="fas fa-server fa-fw mr-2"></i>Devices</a>
-                            <a href="history.php" class="nav-link"><i class="fas fa-history fa-fw mr-2"></i>History</a>
+                            <div class="nav-group">
+                                <button type="button" class="nav-link nav-group-toggle">
+                                    <span class="flex items-center"><i class="fas fa-cogs fa-fw mr-2"></i>Administration</span>
+                                    <i class="fas fa-chevron-down nav-group-caret"></i>
+                                </button>
+                                <div class="nav-group-items">
+                                    <a href="devices.php" class="nav-link nav-sublink"><i class="fas fa-server fa-fw mr-2"></i>Devices</a>
+                                    <a href="history.php" class="nav-link nav-sublink"><i class="fas fa-history fa-fw mr-2"></i>History</a>
+                                    <a href="status_logs.php" class="nav-link nav-sublink"><i class="fas fa-clipboard-list fa-fw mr-2"></i>Status Logs</a>
+                                    <a href="email_notifications.php" class="nav-link nav-sublink"><i class="fas fa-envelope fa-fw mr-2"></i>Email Notifications</a>
+                                    <a href="users.php" class="nav-link nav-sublink"><i class="fas fa-users-cog fa-fw mr-2"></i>Users</a>
+                                    <a href="license_management.php" class="nav-link nav-sublink"><i class="fas fa-id-card fa-fw mr-2"></i>License</a>
+                                </div>
+                            </div>
                         <?php endif; ?>
-                        <a href="map.php" class="nav-link"><i class="fas fa-project-diagram fa-fw mr-2"></i>Map</a>
-                        <?php if ($user_role === 'admin'): ?>
-                            <a href="status_logs.php" class="nav-link"><i class="fas fa-clipboard-list fa-fw mr-2"></i>Status Logs</a>
-                            <a href="email_notifications.php" class="nav-link"><i class="fas fa-envelope fa-fw mr-2"></i>Email Notifications</a>
-                            <a href="users.php" class="nav-link"><i class="fas fa-users-cog fa-fw mr-2"></i>Users</a>
-                            <a href="license_management.php" class="nav-link"><i class="fas fa-id-card fa-fw mr-2"></i>License</a>
-                        <?php endif; ?>
+
                         <a href="documentation.php" class="nav-link"><i class="fas fa-book fa-fw mr-2"></i>Help</a>
                         <a href="logout.php" class="nav-link"><i class="fas fa-sign-out-alt fa-fw mr-2"></i>Logout</a>
                     </div>
