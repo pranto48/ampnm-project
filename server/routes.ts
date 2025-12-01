@@ -2,7 +2,6 @@ import express from 'express';
 import { db } from './database';
 import { v4 as uuidv4 } from 'uuid';
 import { performMonitoringChecks } from './monitoring';
-import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -17,14 +16,14 @@ router.get('/hosts', (req, res) => {
 
 router.post('/hosts', (req, res) => {
   try {
-    const { name, ip_address, description } = req.body;
+    const { name, ip_address, description, device_type } = req.body;
     const id = uuidv4();
     const now = new Date().toISOString();
 
     db.prepare(`
-      INSERT INTO hosts (id, name, ip_address, description, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'unknown', ?, ?)
-    `).run(id, name, ip_address, description || null, now, now);
+      INSERT INTO hosts (id, name, ip_address, description, device_type, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'unknown', ?, ?)
+    `).run(id, name, ip_address, description || null, device_type || 'server', now, now);
 
     const host = db.prepare('SELECT * FROM hosts WHERE id = ?').get(id);
     res.json(host);
