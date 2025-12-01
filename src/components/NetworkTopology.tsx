@@ -1,10 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Server } from 'lucide-react';
-import { HostWithServices } from '../types/monitoring';
+import { Server, Router, Network, Boxes, Shield, Cloud, LucideIcon } from 'lucide-react';
+import { HostWithServices, DeviceType } from '../types/monitoring';
 
 interface NetworkTopologyProps {
   hosts: HostWithServices[];
 }
+
+const deviceIcons: Record<DeviceType, LucideIcon> = {
+  server: Server,
+  switch: Network,
+  router: Router,
+  firewall: Shield,
+  docker: Boxes,
+  cloud: Cloud
+};
+
+const getDeviceIcon = (type?: DeviceType) => deviceIcons[type || 'server'] || Server;
 
 export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
@@ -71,6 +82,8 @@ export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
             const pos = positions.get(host.id);
             if (!pos) return null;
 
+            const DeviceIcon = getDeviceIcon(host.device_type as DeviceType);
+
             const statusColors = {
               up: '#10B981',
               down: '#EF4444',
@@ -96,7 +109,7 @@ export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
                   height="30"
                 >
                   <div className="flex items-center justify-center w-full h-full">
-                    <Server className="w-6 h-6 text-gray-700" />
+                    <DeviceIcon className="w-6 h-6 text-gray-700" />
                   </div>
                 </foreignObject>
                 <text
@@ -171,6 +184,33 @@ export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 rounded-full bg-gray-500"></div>
           <span className="text-gray-600">Unknown</span>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-center flex-wrap gap-4 text-sm text-gray-600">
+        <div className="flex items-center space-x-2">
+          <Server className="w-4 h-4 text-gray-700" />
+          <span>Server</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Network className="w-4 h-4 text-gray-700" />
+          <span>Switch</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Router className="w-4 h-4 text-gray-700" />
+          <span>Router</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Shield className="w-4 h-4 text-gray-700" />
+          <span>Firewall</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Boxes className="w-4 h-4 text-gray-700" />
+          <span>Docker</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Cloud className="w-4 h-4 text-gray-700" />
+          <span>Cloud</span>
         </div>
       </div>
     </div>

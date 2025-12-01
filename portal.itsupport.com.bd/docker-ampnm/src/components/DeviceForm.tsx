@@ -144,8 +144,9 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                         ))}
                       </select>
                       <FormDescription>
-                        Browse the open-source icon gallery, filter by category, and pick the device icon you prefer. You can also
-                        quickly choose from the dropdown list above if the gallery dialog is not visible.
+                        Browse the open-source icon gallery, filter by category, or use the quick router/docker galleries to see
+                        multiple icon styles at once. You can also quickly choose from the dropdown list above if the gallery dialog
+                        is not visible.
                       </FormDescription>
                     </div>
                   </FormControl>
