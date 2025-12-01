@@ -81,6 +81,9 @@ $page_title = "Documentation - AMPNM User Manual";
                         <a href="#notifications" class="block px-3 py-2 rounded transition">
                             <i class="fas fa-bell mr-2"></i>Notifications
                         </a>
+                        <a href="#mikrotik" class="block px-3 py-2 rounded transition">
+                            <i class="fas fa-network-wired mr-2"></i>MikroTik Traffic Monitor
+                        </a>
                         <a href="#license" class="block px-3 py-2 rounded transition">
                             <i class="fas fa-key mr-2"></i>License Management
                         </a>
@@ -371,6 +374,69 @@ $page_title = "Documentation - AMPNM User Manual";
                             <div class="bg-red-900/30 p-3 rounded border-l-4 border-red-500">
                                 <i class="fas fa-exclamation-circle text-red-400 mr-2"></i><strong>Critical Status</strong>
                             </div>
+                        </div>
+                    </section>
+
+                    <!-- MikroTik Traffic Monitor -->
+                    <section id="mikrotik" class="doc-section">
+                        <h2 class="text-3xl font-bold text-cyan-400 mb-4">
+                            <i class="fas fa-network-wired mr-2"></i>MikroTik Traffic Monitor
+                        </h2>
+
+                        <p class="mb-4">Use a dedicated, least-privileged RouterOS account to let the AMPNM Docker server read interface traffic via the RouterOS API.</p>
+
+                        <div class="bg-slate-700 p-4 rounded mb-4">
+                            <h3 class="text-2xl font-semibold mb-3">One-time setup (run on the router)</h3>
+                            <p class="mb-3 text-sm text-slate-200">Update the <code class="bg-slate-800 px-2 py-1 rounded">ampnmServer</code>, <code class="bg-slate-800 px-2 py-1 rounded">ampnmUser</code>, and <code class="bg-slate-800 px-2 py-1 rounded">ampnmPass</code> values, then paste the block into a MikroTik terminal.</p>
+                            <div class="code-block mb-3 text-sm">
+<code>:local ampnmServer "192.0.2.10"
+:local ampnmUser "ampnm-monitor"
+:local ampnmPass "Str0ngLongPassword!"
+
+# Enable and lock down the API service (port 8728) to the AMPNM host
+/ip service set api disabled=no address=$ampnmServer/32
+
+# Create a read-only group for traffic monitoring
+/user group add name=ampnm-monitor policy=read,api,!local,!telnet,!ssh,!ftp,!reboot,!write
+
+# Create the monitoring user bound to that group
+/user add name=$ampnmUser password=$ampnmPass group=ampnm-monitor comment="AMPNM traffic monitor"
+
+# Allow API traffic only from the AMPNM Docker server
+/ip firewall address-list add list=ampnm-servers address=$ampnmServer comment="AMPNM Docker server"
+/ip firewall filter add chain=input src-address-list=ampnm-servers protocol=tcp dst-port=8728 action=accept comment="Allow AMPNM API"
+/ip firewall filter add chain=input protocol=tcp dst-port=8728 action=drop comment="Drop other API attempts"</code>
+                            </div>
+                            <ul class="list-disc list-inside space-y-2 text-sm">
+                                <li>Re-use the existing <code>ampnm-monitor</code> group if it already exists to avoid duplicates.</li>
+                                <li>If you already limit <strong>API</strong> with specific <em>allowed-addresses</em>, merge the AMPNM server IP instead of overriding existing values.</li>
+                                <li>Leave SSH/Winbox fully disabled for this user; only <strong>read</strong> and <strong>api</strong> permissions are needed.</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-slate-700 p-4 rounded mb-4">
+                            <h3 class="text-2xl font-semibold mb-3">Add the router in AMPNM</h3>
+                            <ol class="list-decimal list-inside space-y-2 text-sm">
+                                <li>Open <strong>Devices → Add Device</strong> and choose a <em>Router</em> icon for clarity.</li>
+                                <li>Set the router's management IP as the <strong>Host/IP</strong>.</li>
+                                <li>Enter the MikroTik API credentials:<ul class="ml-6 mt-1 space-y-1 list-disc list-inside">
+                                        <li><strong>Username:</strong> <code class="bg-slate-800 px-2 py-1 rounded">ampnm-monitor</code> (or your custom name)</li>
+                                        <li><strong>Password:</strong> the value of <code class="bg-slate-800 px-2 py-1 rounded">ampnmPass</code></li>
+                                        <li><strong>Port:</strong> <code class="bg-slate-800 px-2 py-1 rounded">8728</code> (default RouterOS API)</li>
+                                    </ul>
+                                </li>
+                                <li>Save the device; AMPNM will poll interface traffic through the API user you created.</li>
+                            </ol>
+                        </div>
+
+                        <div class="bg-blue-900/40 border-l-4 border-blue-400 p-4 rounded">
+                            <h4 class="font-bold text-lg mb-2"><i class="fas fa-shield-alt text-blue-300 mr-2"></i>Hardening tips</h4>
+                            <ul class="list-disc list-inside space-y-1 text-sm">
+                                <li>Use a strong, unique password and rotate it periodically.</li>
+                                <li>Keep the <strong>API</strong> service limited to your AMPNM server IP only.</li>
+                                <li>Review <code>/ip firewall filter</code> counters to ensure only expected API hits arrive.</li>
+                                <li>Disable the account if you pause monitoring for an extended period.</li>
+                            </ul>
                         </div>
                     </section>
 
