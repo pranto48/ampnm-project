@@ -149,6 +149,9 @@ try {
             `icon_size` INT(11) DEFAULT 50,
             `name_text_size` INT(11) DEFAULT 14,
             `icon_url` VARCHAR(255) NULL,
+            `router_api_username` VARCHAR(100) NULL,
+            `router_api_password` TEXT NULL,
+            `router_api_port` INT(5) NULL,
             `warning_latency_threshold` INT(11) NULL,
             `warning_packetloss_threshold` INT(11) NULL,
             `critical_latency_threshold` INT(11) NULL,
@@ -303,6 +306,18 @@ try {
     if (!columnExists($pdo, $dbname, 'maps', 'public_view_enabled')) {
         $pdo->exec("ALTER TABLE `maps` ADD COLUMN `public_view_enabled` BOOLEAN DEFAULT FALSE AFTER `is_default`;");
         message("Migrated `maps` table: added `public_view_enabled` column.");
+    }
+    if (!columnExists($pdo, $dbname, 'devices', 'router_api_username')) {
+        $pdo->exec("ALTER TABLE `devices` ADD COLUMN `router_api_username` VARCHAR(100) NULL AFTER `icon_url`;");
+        message("Upgraded 'devices' table: added 'router_api_username' column.");
+    }
+    if (!columnExists($pdo, $dbname, 'devices', 'router_api_password')) {
+        $pdo->exec("ALTER TABLE `devices` ADD COLUMN `router_api_password` TEXT NULL AFTER `router_api_username`;");
+        message("Upgraded 'devices' table: added 'router_api_password' column.");
+    }
+    if (!columnExists($pdo, $dbname, 'devices', 'router_api_port')) {
+        $pdo->exec("ALTER TABLE `devices` ADD COLUMN `router_api_port` INT(5) NULL AFTER `router_api_password`;");
+        message("Upgraded 'devices' table: added 'router_api_port' column.");
     }
 
 

@@ -10,6 +10,9 @@ export interface Host {
   ip_address: string;
   description?: string;
   device_type?: DeviceType;
+  api_username?: string;
+  api_password?: string;
+  api_port?: number;
   status: HostStatus;
   last_check?: string;
   created_at: string;

@@ -20,6 +20,9 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
   const [ipAddress, setIpAddress] = useState('');
   const [description, setDescription] = useState('');
   const [deviceType, setDeviceType] = useState<DeviceType>('server');
+  const [apiUsername, setApiUsername] = useState('');
+  const [apiPassword, setApiPassword] = useState('');
+  const [apiPort, setApiPort] = useState(8728);
   const [services, setServices] = useState<ServiceInput[]>([
     { name: 'PING', check_type: 'ping', check_interval: 60, description: '' }
   ]);
@@ -50,7 +53,10 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
         name: hostName,
         ip_address: ipAddress,
         description: description || null,
-        device_type: deviceType
+        device_type: deviceType,
+        api_username: apiUsername || null,
+        api_password: apiPassword || null,
+        api_port: apiPort || 8728
       });
 
       const hostId = hostRes.data.id;
@@ -154,6 +160,56 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
                 <option value="cloud">Cloud Service</option>
               </select>
             </div>
+
+            {deviceType === 'router' && (
+              <div className="border border-blue-100 bg-blue-50 rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Router API Access (MikroTik)</h4>
+                    <p className="text-xs text-gray-600">
+                      Provide the RouterOS API account AMPNM should use to poll interface traffic. Matches the credentials
+                      described in the MikroTik setup guide.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Username</label>
+                    <input
+                      type="text"
+                      value={apiUsername}
+                      onChange={(e) => setApiUsername(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="ampnm-monitor"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Password</label>
+                    <input
+                      type="password"
+                      value={apiPassword}
+                      onChange={(e) => setApiPassword(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="ampnmPass value"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Port</label>
+                    <input
+                      type="number"
+                      value={apiPort}
+                      onChange={(e) => setApiPort(parseInt(e.target.value, 10) || 8728)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min={1}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">Default RouterOS API port is 8728.</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
