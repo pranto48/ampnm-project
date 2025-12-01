@@ -37,7 +37,9 @@ switch ($action) {
 
             if (setAppLicenseKey($new_license_key)) {
                 // Force a re-verification with the portal immediately after updating the key
-                verifyLicenseWithPortal();
+                unset($_SESSION['license_last_verified']);
+                unset($_SESSION['license_last_verified_key']);
+                verifyLicenseWithPortal(true);
                 echo json_encode(['success' => true, 'message' => 'License key updated and re-verified.']);
             } else {
                 http_response_code(500);
@@ -48,7 +50,7 @@ switch ($action) {
 
     case 'force_license_recheck':
         // Force a re-verification with the portal
-        verifyLicenseWithPortal();
+        verifyLicenseWithPortal(true);
         echo json_encode(['success' => true, 'message' => 'License re-verification initiated.']);
         break;
 

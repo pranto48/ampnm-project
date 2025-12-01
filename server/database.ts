@@ -19,6 +19,10 @@ export function initializeDatabase() {
       name TEXT NOT NULL,
       ip_address TEXT NOT NULL,
       description TEXT,
+      device_type TEXT DEFAULT 'server',
+      api_username TEXT,
+      api_password TEXT,
+      api_port INTEGER DEFAULT 8728,
       status TEXT DEFAULT 'unknown',
       last_check TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -88,6 +92,28 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_alerts_acknowledged ON alerts(acknowledged);
     CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
   `);
+
+  const hostColumns = db.prepare(`PRAGMA table_info(hosts)`).all() as { name: string }[];
+  const hasDeviceType = hostColumns.some((column) => column.name === 'device_type');
+  const hasApiUsername = hostColumns.some((column) => column.name === 'api_username');
+  const hasApiPassword = hostColumns.some((column) => column.name === 'api_password');
+  const hasApiPort = hostColumns.some((column) => column.name === 'api_port');
+
+  if (!hasDeviceType) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN device_type TEXT DEFAULT 'server'`);
+  }
+
+  if (!hasApiUsername) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN api_username TEXT`);
+  }
+
+  if (!hasApiPassword) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN api_password TEXT`);
+  }
+
+  if (!hasApiPort) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN api_port INTEGER DEFAULT 8728`);
+  }
 
   console.log('Database initialized successfully');
 }

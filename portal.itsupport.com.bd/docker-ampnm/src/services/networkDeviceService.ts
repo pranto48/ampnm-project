@@ -26,6 +26,9 @@ export interface NetworkDevice {
   icon: string;
   type?: string;
   icon_url?: string | null;
+  router_api_username?: string | null;
+  router_api_password?: string | null;
+  router_api_port?: number | null;
   status?: 'online' | 'offline' | 'unknown' | 'warning' | 'critical';
   ping_interval?: number;
   icon_size?: number;
@@ -106,6 +109,9 @@ export const addDevice = async (device: Omit<NetworkDevice, 'user_id' | 'status'
     icon_size: device.icon_size,
     name_text_size: device.name_text_size,
     icon_url: device.icon_url,
+    router_api_username: device.router_api_username,
+    router_api_password: device.router_api_password,
+    router_api_port: device.router_api_port,
     warning_latency_threshold: device.warning_latency_threshold,
     warning_packetloss_threshold: device.warning_packetloss_threshold,
     critical_latency_threshold: device.critical_latency_threshold,
@@ -131,6 +137,9 @@ export const updateDevice = async (id: string, updates: Partial<NetworkDevice>):
   if (updates.icon_size !== undefined) payload.icon_size = updates.icon_size;
   if (updates.name_text_size !== undefined) payload.name_text_size = updates.name_text_size;
   if (updates.icon_url !== undefined) payload.icon_url = updates.icon_url;
+  if (updates.router_api_username !== undefined) payload.router_api_username = updates.router_api_username;
+  if (updates.router_api_password !== undefined) payload.router_api_password = updates.router_api_password;
+  if (updates.router_api_port !== undefined) payload.router_api_port = updates.router_api_port;
   if (updates.warning_latency_threshold !== undefined) payload.warning_latency_threshold = updates.warning_latency_threshold;
   if (updates.warning_packetloss_threshold !== undefined) payload.warning_packetloss_threshold = updates.warning_packetloss_threshold;
   if (updates.critical_latency_threshold !== undefined) payload.critical_latency_threshold = updates.critical_latency_threshold;
