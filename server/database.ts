@@ -19,6 +19,7 @@ export function initializeDatabase() {
       name TEXT NOT NULL,
       ip_address TEXT NOT NULL,
       description TEXT,
+      device_type TEXT DEFAULT 'server',
       status TEXT DEFAULT 'unknown',
       last_check TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -88,6 +89,13 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_alerts_acknowledged ON alerts(acknowledged);
     CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
   `);
+
+  const hostColumns = db.prepare(`PRAGMA table_info(hosts)`).all() as { name: string }[];
+  const hasDeviceType = hostColumns.some((column) => column.name === 'device_type');
+
+  if (!hasDeviceType) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN device_type TEXT DEFAULT 'server'`);
+  }
 
   console.log('Database initialized successfully');
 }
