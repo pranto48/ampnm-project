@@ -166,6 +166,8 @@ function verifyLicenseWithPortal(bool $force = false) {
     }
 
 
+    $app_license_key = getAppLicenseKey();
+
     $last_verified_key = $_SESSION['license_last_verified_key'] ?? null;
     if ($last_verified_key !== $app_license_key) {
         $force = true; // License key changed - always re-verify immediately
@@ -175,7 +177,6 @@ function verifyLicenseWithPortal(bool $force = false) {
         return; // Use cached data
     }
 
-    $app_license_key = getAppLicenseKey();
     $installation_id = getAppSetting('installation_id');
     $user_id = $_SESSION['user_id'] ?? 'anonymous'; // Use 'anonymous' if not logged in for initial checks
 
