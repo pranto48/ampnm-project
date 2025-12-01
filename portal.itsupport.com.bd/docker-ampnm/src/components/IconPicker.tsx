@@ -19,20 +19,27 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Box,
+  Boxes,
   Camera,
   Check,
+  Container,
   Cloud,
   Database,
   HardDrive,
   Laptop,
   LucideIcon,
+  Package,
+  Package2,
   Phone,
   Plug,
   Printer,
   Radio,
   Router,
+  Antenna,
+  SatelliteDish,
   Server,
   ServerRack,
+  ShipWheel,
   Shield,
   Smartphone,
   Switch,
@@ -61,15 +68,24 @@ export interface IconCategory {
   icons: IconOption[];
 }
 
+const QUICK_FILTERS = [
+  { id: 'router', label: 'Router & Wireless', keywords: ['router', 'wireless', 'gateway', 'antenna', 'satellite'] },
+  { id: 'switch', label: 'Switching & LAN', keywords: ['switch', 'lan', 'aggregation', 'layer3'] },
+  { id: 'docker', label: 'Docker & Containers', keywords: ['docker', 'container', 'image', 'package', 'registry'] },
+];
+
 export const ICON_CATEGORIES: IconCategory[] = [
   {
     id: 'connectivity',
     label: 'Connectivity',
     icons: [
-      { value: 'router', label: 'Router', Icon: Router, keywords: ['gateway', 'edge'], category: 'connectivity' },
-      { value: 'switch', label: 'Switch', Icon: Switch, keywords: ['layer2', 'lan'], category: 'connectivity' },
-      { value: 'wifi-router', label: 'WiFi Router', Icon: Wifi, keywords: ['wireless', 'access point'], category: 'connectivity' },
-      { value: 'radio-tower', label: 'Radio Tower', Icon: Radio, keywords: ['wireless bridge', 'ptp'], category: 'connectivity' },
+      { value: 'router', label: 'Edge Router', Icon: Router, keywords: ['gateway', 'edge', 'router'], category: 'connectivity' },
+      { value: 'switch', label: 'Switch', Icon: Switch, keywords: ['layer2', 'lan', 'aggregation'], category: 'connectivity' },
+      { value: 'l3-switch', label: 'Layer 3 Switch', Icon: Switch, keywords: ['layer3', 'routing', 'router'], category: 'connectivity' },
+      { value: 'wifi-router', label: 'WiFi Router', Icon: Wifi, keywords: ['wireless', 'access point', 'router'], category: 'connectivity' },
+      { value: 'wireless-bridge', label: 'Wireless Bridge', Icon: Radio, keywords: ['wireless', 'backhaul', 'router'], category: 'connectivity' },
+      { value: 'directional-antenna', label: 'Directional Antenna', Icon: Antenna, keywords: ['wireless', 'antenna', 'router'], category: 'connectivity' },
+      { value: 'satellite-link', label: 'Satellite Link', Icon: SatelliteDish, keywords: ['satellite', 'backhaul', 'router'], category: 'connectivity' },
     ],
   },
   {
@@ -111,6 +127,18 @@ export const ICON_CATEGORIES: IconCategory[] = [
       { value: 'mobile', label: 'Mobile Phone', Icon: Smartphone, keywords: ['handset', 'user'], category: 'endpoints' },
     ],
   },
+  {
+    id: 'containers',
+    label: 'Docker & Containers',
+    icons: [
+      { value: 'docker-box', label: 'Docker Stack', Icon: Boxes, keywords: ['docker', 'container', 'compose'], category: 'containers' },
+      { value: 'container', label: 'Container', Icon: Container, keywords: ['container', 'pod', 'docker'], category: 'containers' },
+      { value: 'package', label: 'Image Package', Icon: Package, keywords: ['docker', 'image', 'package'], category: 'containers' },
+      { value: 'package-2', label: 'Registry Artifact', Icon: Package2, keywords: ['registry', 'package', 'docker'], category: 'containers' },
+      { value: 'ship-wheel', label: 'Orchestration', Icon: ShipWheel, keywords: ['helm', 'kubernetes', 'docker'], category: 'containers' },
+      { value: 'container-box', label: 'Container Box', Icon: Box, keywords: ['container', 'box', 'docker'], category: 'containers' },
+    ],
+  },
 ];
 
 export const ICON_OPTIONS = ICON_CATEGORIES.flatMap(category => category.icons);
@@ -118,9 +146,12 @@ export const ICON_OPTIONS = ICON_CATEGORIES.flatMap(category => category.icons);
 export const IconPicker = ({ value, onChange, open, onOpenChange }: IconPickerProps) => {
   const [category, setCategory] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [quickFilter, setQuickFilter] = useState<string>('all');
 
   const filteredIcons = useMemo(() => {
     const term = search.toLowerCase();
+    const selectedQuickFilter = QUICK_FILTERS.find(filter => filter.id === quickFilter);
+    const filterKeywords = selectedQuickFilter?.keywords || [];
 
     return ICON_OPTIONS.filter(icon => {
       const matchesCategory = category === 'all' || icon.category === category;
@@ -129,10 +160,12 @@ export const IconPicker = ({ value, onChange, open, onOpenChange }: IconPickerPr
         icon.label.toLowerCase().includes(term) ||
         icon.value.toLowerCase().includes(term) ||
         icon.keywords.some(keyword => keyword.includes(term));
+      const matchesQuickFilter =
+        quickFilter === 'all' || icon.keywords.some(keyword => filterKeywords.includes(keyword));
 
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesSearch && matchesQuickFilter;
     });
-  }, [category, search]);
+  }, [category, search, quickFilter]);
 
   const categoryLabelMap = useMemo(
     () => Object.fromEntries(ICON_CATEGORIES.map(item => [item.id, item.label])),
@@ -180,6 +213,35 @@ export const IconPicker = ({ value, onChange, open, onOpenChange }: IconPickerPr
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="mt-2 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Quick galleries</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={quickFilter === 'all' ? 'default' : 'outline'}
+              onClick={() => setQuickFilter('all')}
+            >
+              Show all icons
+            </Button>
+            {QUICK_FILTERS.map(filter => (
+              <Button
+                key={filter.id}
+                type="button"
+                size="sm"
+                variant={quickFilter === filter.id ? 'default' : 'outline'}
+                onClick={() => setQuickFilter(filter.id)}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Pick “Router & Wireless” to see a gallery of router-focused icons, or choose “Docker & Containers” to browse
+            container visuals.
+          </p>
         </div>
 
         <ScrollArea className="mt-2 h-80 pr-2">

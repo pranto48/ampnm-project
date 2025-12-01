@@ -2,19 +2,53 @@
 require_once 'includes/auth_check.php';
 include 'header.php';
 
-$autoDetectedRepoPath = (function (string $startPath): ?string {
-    $current = realpath($startPath);
-    while ($current && $current !== dirname($current)) {
-        $gitDir = $current . DIRECTORY_SEPARATOR . '.git';
-        if (is_dir($gitDir) || is_file($gitDir)) {
-            return $current;
+$autoDetection = (function (string $startPath): array {
+    $normalize = static function (string $path): string {
+        return rtrim($path, '/\\');
+    };
+
+    $attempts = [];
+    $addAttempt = static function (string $path) use (&$attempts, $normalize): void {
+        $normalized = $normalize($path);
+        if (!in_array($normalized, $attempts, true)) {
+            $attempts[] = $normalized;
         }
-        $current = dirname($current);
+    };
+
+    $envPath = getenv('AMPNM_REPO_PATH') ?: getenv('REPO_PATH');
+    if ($envPath) {
+        $addAttempt($envPath);
     }
-    return null;
+
+    $current = realpath($startPath) ?: $startPath;
+    $addAttempt($current);
+    while ($current && $current !== dirname($current)) {
+        $current = dirname($current);
+        $addAttempt($current);
+    }
+
+    $parent = dirname(realpath($startPath) ?: $startPath);
+    $addAttempt($parent . DIRECTORY_SEPARATOR . 'ampnm-project');
+    $addAttempt('/var/www/html/ampnm-project');
+
+    $detected = null;
+    foreach ($attempts as $path) {
+        $gitDir = $path . DIRECTORY_SEPARATOR . '.git';
+        if (is_dir($gitDir) || is_file($gitDir)) {
+            $detected = $path;
+            break;
+        }
+    }
+
+    return [
+        'path' => $detected,
+        'attempts' => $attempts,
+        'fallback' => $attempts[0] ?? realpath($startPath) ?: $startPath,
+    ];
 })(__DIR__);
 
-$defaultRepoPath = $autoDetectedRepoPath ?? realpath(__DIR__);
+$autoDetectedRepoPath = $autoDetection['path'];
+$defaultRepoPath = $autoDetectedRepoPath ?? $autoDetection['fallback'];
 $repoPath = isset($_POST['repo_path']) && trim($_POST['repo_path']) !== ''
     ? rtrim(trim($_POST['repo_path']), '/\\')
     : $defaultRepoPath;
@@ -104,7 +138,14 @@ if ($action === 'update' && $isGitRepo) {
         <?php elseif (!$isGitRepo): ?>
             <div class="bg-yellow-500/10 border border-yellow-500/40 text-yellow-200 rounded-lg p-4 mb-6">
                 <p class="font-semibold mb-1">Repository not detected at <code><?php echo htmlspecialchars($repoPath); ?></code>.</p>
-                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below. We automatically scan parent folders for <code>.git</code> (detected: <code><?php echo htmlspecialchars($autoDetectedRepoPath ?? 'none'); ?></code>).</p>
+                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below. You can also set <code>AMPNM_REPO_PATH</code> in the container to point directly to the mounted repository (e.g., <code>/var/www/html/ampnm-project</code>).</p>
+                <?php if (empty($autoDetectedRepoPath) && !empty($autoDetection['attempts'])): ?>
+                    <p class="text-xs text-yellow-100 mt-2">
+                        Checked automatically: <code><?php echo htmlspecialchars(implode(', ', $autoDetection['attempts'])); ?></code>
+                    </p>
+                <?php elseif (!empty($autoDetectedRepoPath)): ?>
+                    <p class="text-xs text-yellow-100 mt-2">Nearest <code>.git</code> found at <code><?php echo htmlspecialchars($autoDetectedRepoPath); ?></code>.</p>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
 
