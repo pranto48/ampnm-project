@@ -2,18 +2,48 @@ import { useState, useEffect } from 'react';
 import { Network } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import NetworkTopology from './components/NetworkTopology';
-import { hostsApi, servicesApi } from './lib/api';
+import { hostsApi, servicesApi, licenseApi } from './lib/api';
 import { Host, Service, HostWithServices } from './types/monitoring';
+
+const LICENSE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+
+interface LicenseStatus {
+  activated: boolean;
+  customer_name?: string;
+  max_hosts?: number;
+  expiry_date?: string;
+  expired?: boolean;
+  status?: string;
+  checked_at: string;
+}
 
 function App() {
   const [view, setView] = useState<'dashboard' | 'topology'>('dashboard');
   const [hostsWithServices, setHostsWithServices] = useState<HostWithServices[]>([]);
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
 
   useEffect(() => {
     if (view === 'topology') {
       fetchHostsWithServices();
     }
   }, [view]);
+
+  useEffect(() => {
+    const checkLicense = async () => {
+      try {
+        const response = await licenseApi.getStatus();
+        setLicenseStatus({ ...response.data, checked_at: new Date().toISOString() });
+      } catch (error) {
+        console.error('Error checking license status:', error);
+        setLicenseStatus({ activated: false, expired: false, checked_at: new Date().toISOString() });
+      }
+    };
+
+    checkLicense();
+    const interval = setInterval(checkLicense, LICENSE_CHECK_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchHostsWithServices = async () => {
     try {
@@ -63,6 +93,34 @@ function App() {
           </div>
         </div>
       </nav>
+
+      {licenseStatus && (
+        <div
+          className={`border-b ${
+            licenseStatus.activated && !licenseStatus.expired
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          }`}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 text-sm flex items-center justify-between">
+            <div>
+              {licenseStatus.activated ? (
+                <span>
+                  License {licenseStatus.expired ? 'expired' : 'active'}
+                  {licenseStatus.customer_name ? ` · ${licenseStatus.customer_name}` : ''}
+                  {licenseStatus.max_hosts ? ` · ${licenseStatus.max_hosts} hosts` : ''}
+                  {licenseStatus.expiry_date ? ` · Expires ${licenseStatus.expiry_date}` : ''}
+                </span>
+              ) : (
+                <span>License is not activated</span>
+              )}
+            </div>
+            <span className="text-xs text-gray-500">
+              Last checked {new Date(licenseStatus.checked_at).toLocaleString()}
+            </span>
+          </div>
+        </div>
+      )}
 
       {view === 'dashboard' ? (
         <Dashboard />

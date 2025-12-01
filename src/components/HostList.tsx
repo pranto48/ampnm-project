@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Server, Plus, ChevronDown, ChevronRight } from 'lucide-react';
-import { Host, Service } from '../types/monitoring';
+import { Server, Plus, ChevronDown, ChevronRight, Router, Network, Boxes, Shield, Cloud, LucideIcon } from 'lucide-react';
+import { Host, Service, DeviceType } from '../types/monitoring';
 import { getStatusColor, getStatusTextColor, formatLastCheck, formatResponseTime } from '../utils/statusHelpers';
 import AddHostModal from './AddHostModal';
 
@@ -13,6 +13,17 @@ interface HostListProps {
 export default function HostList({ hosts, services, onUpdate }: HostListProps) {
   const [expandedHosts, setExpandedHosts] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const deviceIcons: Record<DeviceType, LucideIcon> = {
+    server: Server,
+    switch: Network,
+    router: Router,
+    firewall: Shield,
+    docker: Boxes,
+    cloud: Cloud
+  };
+
+  const getDeviceIcon = (type?: DeviceType) => deviceIcons[type || 'server'] || Server;
 
   const toggleHost = (hostId: string) => {
     const newExpanded = new Set(expandedHosts);
@@ -57,6 +68,7 @@ export default function HostList({ hosts, services, onUpdate }: HostListProps) {
           hosts.map((host) => {
             const hostServices = getHostServices(host.id);
             const isExpanded = expandedHosts.has(host.id);
+            const DeviceIcon = getDeviceIcon(host.device_type as DeviceType);
 
             return (
               <div key={host.id} className="hover:bg-gray-50 transition-colors">
@@ -74,10 +86,16 @@ export default function HostList({ hosts, services, onUpdate }: HostListProps) {
                         )}
                         <div className={`w-3 h-3 rounded-full ${getStatusColor(host.status)}`}></div>
                       </div>
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100">
+                        <DeviceIcon className="w-5 h-5 text-gray-600" />
+                      </div>
                       <div className="flex-1">
                         <div className="flex items-center space-x-3">
                           <h3 className="font-semibold text-gray-900">{host.name}</h3>
                           <span className="text-sm text-gray-500">{host.ip_address}</span>
+                          <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 capitalize">
+                            {host.device_type || 'server'}
+                          </span>
                         </div>
                         {host.description && (
                           <p className="text-sm text-gray-600 mt-1">{host.description}</p>
