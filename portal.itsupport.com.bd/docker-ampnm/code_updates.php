@@ -2,6 +2,8 @@
 require_once 'includes/auth_check.php';
 include 'header.php';
 
+$canonicalRepoUrl = 'https://github.com/pranto48/ampnm-project.git';
+
 $autoDetection = (function (string $startPath): array {
     $normalize = static function (string $path): string {
         return rtrim($path, '/\\');
@@ -56,6 +58,8 @@ $gitBinary = trim(shell_exec('which git 2>/dev/null'));
 $gitAvailable = $gitBinary !== '';
 $gitMarker = $repoPath . DIRECTORY_SEPARATOR . '.git';
 $isGitRepo = $gitAvailable && (is_dir($gitMarker) || is_file($gitMarker));
+$remoteUrl = '';
+$originConfigured = false;
 
 $action = $_POST['action'] ?? null;
 $statusMessage = '';
@@ -69,6 +73,11 @@ function runGitCommand(string $repoPath, string $command): string
     return shell_exec($fullCommand) ?? '';
 }
 
+function runShellCommand(string $command): string
+{
+    return shell_exec($command) ?? '';
+}
+
 function safeTrim(?string $value): string
 {
     $value = $value ?? '';
@@ -77,16 +86,57 @@ function safeTrim(?string $value): string
     return implode("\n", $lines);
 }
 
+function ensureDirectory(string $path): bool
+{
+    if (is_dir($path)) {
+        return true;
+    }
+
+    return mkdir($path, 0755, true);
+}
+
+function isDirectoryEmpty(string $path): bool
+{
+    if (!is_dir($path)) {
+        return true;
+    }
+
+    $files = scandir($path);
+    if ($files === false) {
+        return false;
+    }
+
+    foreach ($files as $file) {
+        if ($file !== '.' && $file !== '..') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 $currentBranch = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD')) : '';
 $localCommit = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD')) : '';
 $upstreamRef = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref --symbolic-full-name @{u}')) : '';
 $remoteCommit = '';
+$remoteUrl = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git config --get remote.origin.url')) : '';
+$originConfigured = $remoteUrl !== '';
 
 if ($isGitRepo) {
+    if (!$originConfigured) {
+        $addedOrigin = safeTrim(runGitCommand($repoPath, "git remote add origin {$canonicalRepoUrl}"));
+        $commandOutput['Remote'] = $addedOrigin !== '' ? $addedOrigin : 'origin set to canonical repository.';
+        $remoteUrl = $canonicalRepoUrl;
+        $originConfigured = true;
+    }
+
     if ($upstreamRef === '' || str_starts_with($upstreamRef, 'fatal:')) {
         $upstreamRef = 'origin/main';
     }
     $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    if (str_starts_with($remoteCommit, 'fatal:')) {
+        $remoteCommit = '';
+    }
 }
 
 if ($action === 'check' && $isGitRepo) {
@@ -98,6 +148,9 @@ if ($action === 'check' && $isGitRepo) {
     $statusType = 'info';
 
     $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    if (str_starts_with($remoteCommit, 'fatal:')) {
+        $remoteCommit = '';
+    }
 }
 
 if ($action === 'update' && $isGitRepo) {
@@ -113,6 +166,49 @@ if ($action === 'update' && $isGitRepo) {
     $currentBranch = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD'));
     $localCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD'));
     $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    if (str_starts_with($remoteCommit, 'fatal:')) {
+        $remoteCommit = '';
+    }
+}
+
+if ($action === 'clone' && $gitAvailable && !$isGitRepo) {
+    $cloneTarget = $repoPath;
+    $parentDir = dirname($cloneTarget);
+    $commandOutput['Validation'] = '';
+
+    if (!is_dir($parentDir) && !ensureDirectory($parentDir)) {
+        $statusMessage = 'Failed to create parent directory for the repository path.';
+        $statusType = 'error';
+    } elseif (file_exists($cloneTarget) && !is_dir($cloneTarget)) {
+        $statusMessage = 'Repository path points to a file. Please choose a directory.';
+        $statusType = 'error';
+    } elseif (!isDirectoryEmpty($cloneTarget) && !is_dir($cloneTarget . DIRECTORY_SEPARATOR . '.git')) {
+        $statusMessage = 'Repository path is not empty. Please point to an empty directory or existing Git repo.';
+        $statusType = 'error';
+    } else {
+        ensureDirectory($cloneTarget);
+        $cloneCommand = sprintf('git clone --depth 1 %s %s', escapeshellarg($canonicalRepoUrl), escapeshellarg($cloneTarget));
+        $cloneOutput = runShellCommand($cloneCommand);
+        $commandOutput['Clone'] = $cloneOutput;
+        $isGitRepo = is_dir($gitMarker) || is_file($gitMarker);
+
+        if ($isGitRepo) {
+            $statusMessage = 'Repository cloned successfully from GitHub.';
+            $statusType = 'success';
+            $remoteUrl = $canonicalRepoUrl;
+            $originConfigured = true;
+            $currentBranch = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD'));
+            $localCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD'));
+            $upstreamRef = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref --symbolic-full-name @{u}')) ?: 'origin/main';
+            $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+            if (str_starts_with($remoteCommit, 'fatal:')) {
+                $remoteCommit = '';
+            }
+        } else {
+            $statusMessage = 'Clone failed. Review the output below for details.';
+            $statusType = 'error';
+        }
+    }
 }
 
 ?>
@@ -138,7 +234,7 @@ if ($action === 'update' && $isGitRepo) {
         <?php elseif (!$isGitRepo): ?>
             <div class="bg-yellow-500/10 border border-yellow-500/40 text-yellow-200 rounded-lg p-4 mb-6">
                 <p class="font-semibold mb-1">Repository not detected at <code><?php echo htmlspecialchars($repoPath); ?></code>.</p>
-                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below. You can also set <code>AMPNM_REPO_PATH</code> in the container to point directly to the mounted repository (e.g., <code>/var/www/html/ampnm-project</code>).</p>
+                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below. You can also set <code>AMPNM_REPO_PATH</code> in the container to point directly to the mounted repository (e.g., <code>/var/www/html/ampnm-project</code>) or clone the official repo into that path.</p>
                 <?php if (empty($autoDetectedRepoPath) && !empty($autoDetection['attempts'])): ?>
                     <p class="text-xs text-yellow-100 mt-2">
                         Checked automatically: <code><?php echo htmlspecialchars(implode(', ', $autoDetection['attempts'])); ?></code>
@@ -189,6 +285,10 @@ if ($action === 'update' && $isGitRepo) {
                             <dd class="font-mono text-slate-100 mt-1"><?php echo $remoteCommit ?: 'Unknown'; ?></dd>
                         </div>
                         <div>
+                            <dt class="text-slate-400">Remote Origin</dt>
+                            <dd class="font-mono text-slate-100 mt-1 break-all"><?php echo $remoteUrl ?: $canonicalRepoUrl; ?></dd>
+                        </div>
+                        <div>
                             <dt class="text-slate-400">Sync Target</dt>
                             <dd class="mt-1">github.com/pranto48/ampnm-project.git</dd>
                         </div>
@@ -203,7 +303,7 @@ if ($action === 'update' && $isGitRepo) {
                             <input type="hidden" name="action" value="check">
                             <label class="block text-sm text-slate-400">Repository Path</label>
                             <input type="text" name="repo_path" value="<?php echo htmlspecialchars($repoPath); ?>" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="/var/www/html/docker-ampnm">
-                            <button type="submit" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center gap-2<?php echo !$isGitRepo ? ' opacity-60 cursor-not-allowed' : ''; ?>" <?php echo !$isGitRepo ? 'disabled aria-disabled="true"' : ''; ?>>
                                 <i class="fas fa-sync-alt"></i>
                                 <span>Fetch Latest</span>
                             </button>
@@ -213,12 +313,24 @@ if ($action === 'update' && $isGitRepo) {
                             <input type="hidden" name="action" value="update">
                             <label class="block text-sm text-slate-400">Repository Path</label>
                             <input type="text" name="repo_path" value="<?php echo htmlspecialchars($repoPath); ?>" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            <button type="submit" class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg flex items-center justify-center gap-2<?php echo !$isGitRepo ? ' opacity-60 cursor-not-allowed' : ''; ?>" <?php echo !$isGitRepo ? 'disabled aria-disabled="true"' : ''; ?>>
                                 <i class="fas fa-cloud-download-alt"></i>
                                 <span>Apply Update</span>
                             </button>
-                            <p class="text-xs text-slate-500">Runs <code>git fetch --all</code> then <code>git pull --ff-only</code> to sync the Docker app with the latest release.</p>
+                            <p class="text-xs text-slate-500">Runs <code>git fetch --all</code> then <code>git pull --ff-only</code> to sync the Docker app with the latest release. Remote <code>origin</code> is auto-set to the canonical GitHub URL when missing.</p>
                         </form>
+                        <?php if (!$isGitRepo && $gitAvailable): ?>
+                            <form method="POST" class="space-y-3 md:col-span-2">
+                                <input type="hidden" name="action" value="clone">
+                                <label class="block text-sm text-slate-400">Clone into Path</label>
+                                <input type="text" name="repo_path" value="<?php echo htmlspecialchars($repoPath); ?>" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="/var/www/html/ampnm-project">
+                                <button type="submit" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center justify-center gap-2">
+                                    <i class="fas fa-cloud-download-alt"></i>
+                                    <span>Clone from GitHub</span>
+                                </button>
+                                <p class="text-xs text-slate-500">Creates (if needed) the directory and performs <code>git clone --depth 1</code> from <code><?php echo htmlspecialchars($canonicalRepoUrl); ?></code> so updates can be applied.</p>
+                            </form>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -255,6 +367,7 @@ if ($action === 'update' && $isGitRepo) {
                         <li>Ensure the container has outbound internet access to reach GitHub.</li>
                         <li>Commit or back up any local changes before pulling to avoid merge conflicts.</li>
                         <li>If you maintain a fork, change the repository path to your mounted code directory inside the container.</li>
+                        <li>If the code was copied without <code>.git</code>, use "Clone from GitHub" to pull a fresh working copy into the desired path.</li>
                     </ul>
                 </div>
             </div>
