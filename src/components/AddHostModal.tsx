@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Plus } from 'lucide-react';
 import { hostsApi, servicesApi } from '../lib/api';
-import { CheckType } from '../types/monitoring';
+import { CheckType, DeviceType } from '../types/monitoring';
 
 interface AddHostModalProps {
   onClose: () => void;
@@ -19,6 +19,7 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
   const [hostName, setHostName] = useState('');
   const [ipAddress, setIpAddress] = useState('');
   const [description, setDescription] = useState('');
+  const [deviceType, setDeviceType] = useState<DeviceType>('server');
   const [services, setServices] = useState<ServiceInput[]>([
     { name: 'PING', check_type: 'ping', check_interval: 60, description: '' }
   ]);
@@ -48,7 +49,8 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
       const hostRes = await hostsApi.create({
         name: hostName,
         ip_address: ipAddress,
-        description: description || null
+        description: description || null,
+        device_type: deviceType
       });
 
       const hostId = hostRes.data.id;
@@ -68,8 +70,15 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
       }
 
       onSuccess();
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to add host');
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const errorWithResponse = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(errorWithResponse.response?.data?.error || errorWithResponse.message || 'Failed to add host');
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to add host');
+      }
     } finally {
       setLoading(false);
     }
@@ -126,6 +135,24 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
                 placeholder="192.168.1.100 or example.com"
                 required
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Device Type
+              </label>
+              <select
+                value={deviceType}
+                onChange={(e) => setDeviceType(e.target.value as DeviceType)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="server">Server</option>
+                <option value="switch">Switch</option>
+                <option value="router">Router</option>
+                <option value="firewall">Firewall</option>
+                <option value="docker">Docker / Container</option>
+                <option value="cloud">Cloud Service</option>
+              </select>
             </div>
 
             <div>
