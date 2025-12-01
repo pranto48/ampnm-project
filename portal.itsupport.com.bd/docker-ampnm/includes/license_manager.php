@@ -136,6 +136,7 @@ function hydrateCachedLicenseState(): void {
     $_SESSION['license_expires_at'] = $data['license_expires_at'] ?? $_SESSION['license_expires_at'];
     $_SESSION['license_grace_period_end'] = $data['license_grace_period_end'] ?? $_SESSION['license_grace_period_end'];
     $_SESSION['license_last_verified'] = $data['license_last_verified'] ?? $_SESSION['license_last_verified'] ?? 0;
+    $_SESSION['license_last_verified_key'] = $data['license_last_verified_key'] ?? $_SESSION['license_last_verified_key'] ?? null;
 }
 
 // Function to generate a UUID (Universally Unique Identifier)
@@ -150,7 +151,7 @@ function generateUuid() {
  * Performs the actual license verification with the portal API using file_get_contents.
  * Caches results in session.
  */
-function verifyLicenseWithPortal() {
+function verifyLicenseWithPortal(bool $force = false) {
     // Initialize session variables if they don't exist
     if (!isset($_SESSION['license_status_code'])) $_SESSION['license_status_code'] = 'unknown';
     if (!isset($_SESSION['license_message'])) $_SESSION['license_message'] = 'License status unknown.';
@@ -165,7 +166,12 @@ function verifyLicenseWithPortal() {
     }
 
 
-    if (isset($_SESSION['license_last_verified']) && (time() - $_SESSION['license_last_verified'] < LICENSE_VERIFICATION_INTERVAL)) {
+    $last_verified_key = $_SESSION['license_last_verified_key'] ?? null;
+    if ($last_verified_key !== $app_license_key) {
+        $force = true; // License key changed - always re-verify immediately
+    }
+
+    if (!$force && isset($_SESSION['license_last_verified']) && (time() - $_SESSION['license_last_verified'] < LICENSE_VERIFICATION_INTERVAL)) {
         return; // Use cached data
     }
 
@@ -179,6 +185,7 @@ function verifyLicenseWithPortal() {
         $_SESSION['license_max_devices'] = 0;
         $_SESSION['license_expires_at'] = null;
         $_SESSION['license_last_verified'] = time();
+        $_SESSION['license_last_verified_key'] = null;
         return;
     }
     if (empty($installation_id)) {
@@ -187,6 +194,7 @@ function verifyLicenseWithPortal() {
         $_SESSION['license_max_devices'] = 0;
         $_SESSION['license_expires_at'] = null;
         $_SESSION['license_last_verified'] = time();
+        $_SESSION['license_last_verified_key'] = null;
         return;
     }
 
@@ -261,6 +269,7 @@ function verifyLicenseWithPortal() {
                 'license_expires_at' => $_SESSION['license_expires_at'],
                 'license_grace_period_end' => $_SESSION['license_grace_period_end'],
                 'license_last_verified' => $_SESSION['license_last_verified'],
+                'license_last_verified_key' => $_SESSION['license_last_verified_key'] ?? null,
             ]));
             error_log("LICENSE_ERROR: Offline period exceeded ({$days_offline} days). Application disabled.");
             return;
@@ -278,6 +287,7 @@ function verifyLicenseWithPortal() {
                 'license_expires_at' => $_SESSION['license_expires_at'],
                 'license_grace_period_end' => $_SESSION['license_grace_period_end'],
                 'license_last_verified' => $_SESSION['license_last_verified'],
+                'license_last_verified_key' => $_SESSION['license_last_verified_key'] ?? null,
             ]));
             error_log("LICENSE_WARNING: Offline for {$days_offline} days. {$days_remaining} days remaining.");
             return;
@@ -294,6 +304,7 @@ function verifyLicenseWithPortal() {
                 'license_expires_at' => $_SESSION['license_expires_at'],
                 'license_grace_period_end' => $_SESSION['license_grace_period_end'],
                 'license_last_verified' => $_SESSION['license_last_verified'],
+                'license_last_verified_key' => $_SESSION['license_last_verified_key'] ?? null,
             ]));
             error_log("LICENSE_INFO: Offline mode active. Day {$days_offline} of 30.");
             return;
@@ -342,6 +353,8 @@ function verifyLicenseWithPortal() {
     error_log("LICENSE_INFO: License verification completed. Status: {$_SESSION['license_status_code']}. Message: {$_SESSION['license_message']}. Max Devices: {$_SESSION['license_max_devices']}. Expires: {$_SESSION['license_expires_at']}");
     $_SESSION['license_last_verified'] = time();
 
+    $_SESSION['license_last_verified_key'] = $app_license_key;
+
     updateAppSetting('license_cache', json_encode([
         'license_status_code' => $_SESSION['license_status_code'],
         'license_message' => $_SESSION['license_message'],
@@ -349,6 +362,7 @@ function verifyLicenseWithPortal() {
         'license_expires_at' => $_SESSION['license_expires_at'],
         'license_grace_period_end' => $_SESSION['license_grace_period_end'],
         'license_last_verified' => $_SESSION['license_last_verified'],
+        'license_last_verified_key' => $_SESSION['license_last_verified_key'],
     ]));
 }
 
