@@ -56,10 +56,19 @@ $repoPath = isset($_POST['repo_path']) && trim($_POST['repo_path']) !== ''
     : $defaultRepoPath;
 $gitBinary = trim(shell_exec('which git 2>/dev/null'));
 $gitAvailable = $gitBinary !== '';
+$phpUser = safeTrim(shell_exec('whoami')) ?: 'www-data';
+$containerHostname = safeTrim(shell_exec('hostname')) ?: 'docker';
+$nodeVersion = safeTrim(shell_exec('node -v 2>/dev/null'));
+$npmVersion = safeTrim(shell_exec('npm -v 2>/dev/null'));
+$pnpmVersion = safeTrim(shell_exec('pnpm -v 2>/dev/null'));
 $gitMarker = $repoPath . DIRECTORY_SEPARATOR . '.git';
 $isGitRepo = $gitAvailable && (is_dir($gitMarker) || is_file($gitMarker));
 $remoteUrl = '';
 $originConfigured = false;
+$remoteReachable = null;
+$aheadCount = null;
+$behindCount = null;
+$workingTreeClean = null;
 
 $action = $_POST['action'] ?? null;
 $statusMessage = '';
@@ -115,6 +124,35 @@ function isDirectoryEmpty(string $path): bool
     return true;
 }
 
+function collectSyncMetrics(string $repoPath, string $upstreamRef): array
+{
+    $metrics = [
+        'workingTreeClean' => null,
+        'remoteReachable' => null,
+        'aheadCount' => null,
+        'behindCount' => null,
+    ];
+
+    $workingTree = runGitCommand($repoPath, 'git status --porcelain');
+    $metrics['workingTreeClean'] = $workingTree === '';
+
+    $lsRemoteOutput = runGitCommand($repoPath, 'git ls-remote --exit-code origin HEAD');
+    $metrics['remoteReachable'] = $lsRemoteOutput !== '' && !str_starts_with($lsRemoteOutput, 'fatal:');
+
+    if ($upstreamRef !== '') {
+        $aheadBehind = safeTrim(runGitCommand($repoPath, 'git rev-list --left-right --count ' . escapeshellarg($upstreamRef . '...HEAD')));
+        if ($aheadBehind !== '' && !str_starts_with($aheadBehind, 'fatal:')) {
+            $parts = preg_split('/\s+/', trim($aheadBehind));
+            if (count($parts) >= 2) {
+                $metrics['behindCount'] = (int) $parts[0];
+                $metrics['aheadCount'] = (int) $parts[1];
+            }
+        }
+    }
+
+    return $metrics;
+}
+
 $currentBranch = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD')) : '';
 $localCommit = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD')) : '';
 $upstreamRef = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref --symbolic-full-name @{u}')) : '';
@@ -124,7 +162,8 @@ $originConfigured = $remoteUrl !== '';
 
 if ($isGitRepo) {
     if (!$originConfigured) {
-        $addedOrigin = safeTrim(runGitCommand($repoPath, "git remote add origin {$canonicalRepoUrl}"));
+        $escapedOrigin = escapeshellarg($canonicalRepoUrl);
+        $addedOrigin = safeTrim(runGitCommand($repoPath, "git remote add origin {$escapedOrigin}"));
         $commandOutput['Remote'] = $addedOrigin !== '' ? $addedOrigin : 'origin set to canonical repository.';
         $remoteUrl = $canonicalRepoUrl;
         $originConfigured = true;
@@ -133,10 +172,16 @@ if ($isGitRepo) {
     if ($upstreamRef === '' || str_starts_with($upstreamRef, 'fatal:')) {
         $upstreamRef = 'origin/main';
     }
-    $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
     if (str_starts_with($remoteCommit, 'fatal:')) {
         $remoteCommit = '';
     }
+
+    $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+    $workingTreeClean = $metrics['workingTreeClean'];
+    $remoteReachable = $metrics['remoteReachable'];
+    $aheadCount = $metrics['aheadCount'];
+    $behindCount = $metrics['behindCount'];
 }
 
 if ($action === 'check' && $isGitRepo) {
@@ -147,10 +192,16 @@ if ($action === 'check' && $isGitRepo) {
     $statusMessage = 'Fetched latest metadata. Compare local and remote commits below.';
     $statusType = 'info';
 
-    $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
     if (str_starts_with($remoteCommit, 'fatal:')) {
         $remoteCommit = '';
     }
+
+    $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+    $workingTreeClean = $metrics['workingTreeClean'];
+    $remoteReachable = $metrics['remoteReachable'];
+    $aheadCount = $metrics['aheadCount'];
+    $behindCount = $metrics['behindCount'];
 }
 
 if ($action === 'update' && $isGitRepo) {
@@ -165,10 +216,16 @@ if ($action === 'update' && $isGitRepo) {
 
     $currentBranch = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD'));
     $localCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD'));
-    $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
     if (str_starts_with($remoteCommit, 'fatal:')) {
         $remoteCommit = '';
     }
+
+    $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+    $workingTreeClean = $metrics['workingTreeClean'];
+    $remoteReachable = $metrics['remoteReachable'];
+    $aheadCount = $metrics['aheadCount'];
+    $behindCount = $metrics['behindCount'];
 }
 
 if ($action === 'clone' && $gitAvailable && !$isGitRepo) {
@@ -200,10 +257,16 @@ if ($action === 'clone' && $gitAvailable && !$isGitRepo) {
             $currentBranch = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD'));
             $localCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD'));
             $upstreamRef = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref --symbolic-full-name @{u}')) ?: 'origin/main';
-            $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+            $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
             if (str_starts_with($remoteCommit, 'fatal:')) {
                 $remoteCommit = '';
             }
+
+            $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+            $workingTreeClean = $metrics['workingTreeClean'];
+            $remoteReachable = $metrics['remoteReachable'];
+            $aheadCount = $metrics['aheadCount'];
+            $behindCount = $metrics['behindCount'];
         } else {
             $statusMessage = 'Clone failed. Review the output below for details.';
             $statusType = 'error';
@@ -289,8 +352,44 @@ if ($action === 'clone' && $gitAvailable && !$isGitRepo) {
                             <dd class="font-mono text-slate-100 mt-1 break-all"><?php echo $remoteUrl ?: $canonicalRepoUrl; ?></dd>
                         </div>
                         <div>
+                            <dt class="text-slate-400">Remote Reachability</dt>
+                            <dd class="mt-1">
+                                <?php if ($remoteReachable === true): ?>
+                                    <span class="text-emerald-200">Reachable (ls-remote succeeded)</span>
+                                <?php elseif ($remoteReachable === false): ?>
+                                    <span class="text-amber-200">Not reachable yet</span>
+                                <?php else: ?>
+                                    <span class="text-slate-400">n/a</span>
+                                <?php endif; ?>
+                            </dd>
+                        </div>
+                        <div>
                             <dt class="text-slate-400">Sync Target</dt>
                             <dd class="mt-1">github.com/pranto48/ampnm-project.git</dd>
+                        </div>
+                        <div>
+                            <dt class="text-slate-400">Ahead / Behind</dt>
+                            <dd class="mt-1">
+                                <?php if ($aheadCount !== null && $behindCount !== null): ?>
+                                    <span class="text-emerald-200"><?php echo $aheadCount; ?> ahead</span>
+                                    <span class="text-slate-500"> / </span>
+                                    <span class="text-amber-200"><?php echo $behindCount; ?> behind</span>
+                                <?php else: ?>
+                                    <span class="text-slate-400">n/a</span>
+                                <?php endif; ?>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-slate-400">Working Tree</dt>
+                            <dd class="mt-1">
+                                <?php if ($workingTreeClean === true): ?>
+                                    <span class="text-emerald-200">Clean</span>
+                                <?php elseif ($workingTreeClean === false): ?>
+                                    <span class="text-amber-200">Uncommitted changes present</span>
+                                <?php else: ?>
+                                    <span class="text-slate-400">Unknown</span>
+                                <?php endif; ?>
+                            </dd>
                         </div>
                     </dl>
                     <p class="text-xs text-slate-500 mt-3">If commits differ, use "Fetch Latest" to compare or "Apply Update" to pull the newest code into this container.</p>
@@ -365,10 +464,50 @@ if ($action === 'clone' && $gitAvailable && !$isGitRepo) {
                     <h3 class="text-lg font-semibold text-white mb-3">Tips</h3>
                     <ul class="list-disc list-inside space-y-2 text-sm text-slate-300">
                         <li>Ensure the container has outbound internet access to reach GitHub.</li>
+                        <li>If <span class="font-semibold">Remote Reachability</span> shows "Not reachable", verify DNS/proxy settings and that <code>github.com</code> is accessible from the container.</li>
                         <li>Commit or back up any local changes before pulling to avoid merge conflicts.</li>
                         <li>If you maintain a fork, change the repository path to your mounted code directory inside the container.</li>
                         <li>If the code was copied without <code>.git</code>, use "Clone from GitHub" to pull a fresh working copy into the desired path.</li>
                     </ul>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5 shadow-lg">
+                    <h3 class="text-lg font-semibold text-white mb-3">Environment & tooling</h3>
+                    <dl class="space-y-3 text-sm text-slate-300">
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">Container hostname</dt>
+                            <dd class="font-mono text-slate-100"><?php echo htmlspecialchars($containerHostname); ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">PHP user</dt>
+                            <dd class="font-mono text-slate-100"><?php echo htmlspecialchars($phpUser); ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">Git binary</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $gitAvailable ? htmlspecialchars($gitBinary) : 'Not found'; ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">Node</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $nodeVersion !== '' ? htmlspecialchars($nodeVersion) : 'Not installed'; ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">npm</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $npmVersion !== '' ? htmlspecialchars($npmVersion) : 'Not installed'; ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">pnpm</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $pnpmVersion !== '' ? htmlspecialchars($pnpmVersion) : 'Not installed'; ?></dd>
+                        </div>
+                    </dl>
+                    <p class="text-xs text-slate-500 mt-3">Use these details when installing dependencies or troubleshooting why fetch/pull commands might fail in this container.</p>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5 shadow-lg">
+                    <h3 class="text-lg font-semibold text-white mb-3">After updating</h3>
+                    <ul class="list-disc list-inside space-y-2 text-sm text-slate-300">
+                        <li>Rebuild the frontend bundles from the repo root:<br><code class="block bg-slate-900 border border-slate-700 rounded mt-1 p-2">pnpm install<br>pnpm run build && pnpm run build:server</code></li>
+                        <li>Restart the Docker services to pick up new assets:<br><code class="block bg-slate-900 border border-slate-700 rounded mt-1 p-2">docker compose down<br>docker compose up -d --build</code></li>
+                        <li>Verify the portal at <code>https://portal.itsupport.com.bd</code> and the Docker app at <code>/docker-ampnm</code> both reflect the latest commit hashes above.</li>
+                    </ul>
+                    <p class="text-xs text-slate-500 mt-3">Run these commands inside the same container or host where the repository is mounted. Adjust the compose project name or paths if you keep the stack elsewhere.</p>
                 </div>
             </div>
         </div>
