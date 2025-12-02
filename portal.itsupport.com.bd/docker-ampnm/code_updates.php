@@ -2,26 +2,73 @@
 require_once 'includes/auth_check.php';
 include 'header.php';
 
-$autoDetectedRepoPath = (function (string $startPath): ?string {
-    $current = realpath($startPath);
-    while ($current && $current !== dirname($current)) {
-        $gitDir = $current . DIRECTORY_SEPARATOR . '.git';
-        if (is_dir($gitDir) || is_file($gitDir)) {
-            return $current;
+$canonicalRepoUrl = 'https://github.com/pranto48/ampnm-project.git';
+
+$autoDetection = (function (string $startPath): array {
+    $normalize = static function (string $path): string {
+        return rtrim($path, '/\\');
+    };
+
+    $attempts = [];
+    $addAttempt = static function (string $path) use (&$attempts, $normalize): void {
+        $normalized = $normalize($path);
+        if (!in_array($normalized, $attempts, true)) {
+            $attempts[] = $normalized;
         }
-        $current = dirname($current);
+    };
+
+    $envPath = getenv('AMPNM_REPO_PATH') ?: getenv('REPO_PATH');
+    if ($envPath) {
+        $addAttempt($envPath);
     }
-    return null;
+
+    $current = realpath($startPath) ?: $startPath;
+    $addAttempt($current);
+    while ($current && $current !== dirname($current)) {
+        $current = dirname($current);
+        $addAttempt($current);
+    }
+
+    $parent = dirname(realpath($startPath) ?: $startPath);
+    $addAttempt($parent . DIRECTORY_SEPARATOR . 'ampnm-project');
+    $addAttempt('/var/www/html/ampnm-project');
+
+    $detected = null;
+    foreach ($attempts as $path) {
+        $gitDir = $path . DIRECTORY_SEPARATOR . '.git';
+        if (is_dir($gitDir) || is_file($gitDir)) {
+            $detected = $path;
+            break;
+        }
+    }
+
+    return [
+        'path' => $detected,
+        'attempts' => $attempts,
+        'fallback' => $attempts[0] ?? realpath($startPath) ?: $startPath,
+    ];
 })(__DIR__);
 
-$defaultRepoPath = $autoDetectedRepoPath ?? realpath(__DIR__);
+$autoDetectedRepoPath = $autoDetection['path'];
+$defaultRepoPath = $autoDetectedRepoPath ?? $autoDetection['fallback'];
 $repoPath = isset($_POST['repo_path']) && trim($_POST['repo_path']) !== ''
     ? rtrim(trim($_POST['repo_path']), '/\\')
     : $defaultRepoPath;
 $gitBinary = trim(shell_exec('which git 2>/dev/null'));
 $gitAvailable = $gitBinary !== '';
+$phpUser = safeTrim(shell_exec('whoami')) ?: 'www-data';
+$containerHostname = safeTrim(shell_exec('hostname')) ?: 'docker';
+$nodeVersion = safeTrim(shell_exec('node -v 2>/dev/null'));
+$npmVersion = safeTrim(shell_exec('npm -v 2>/dev/null'));
+$pnpmVersion = safeTrim(shell_exec('pnpm -v 2>/dev/null'));
 $gitMarker = $repoPath . DIRECTORY_SEPARATOR . '.git';
 $isGitRepo = $gitAvailable && (is_dir($gitMarker) || is_file($gitMarker));
+$remoteUrl = '';
+$originConfigured = false;
+$remoteReachable = null;
+$aheadCount = null;
+$behindCount = null;
+$workingTreeClean = null;
 
 $action = $_POST['action'] ?? null;
 $statusMessage = '';
@@ -35,6 +82,11 @@ function runGitCommand(string $repoPath, string $command): string
     return shell_exec($fullCommand) ?? '';
 }
 
+function runShellCommand(string $command): string
+{
+    return shell_exec($command) ?? '';
+}
+
 function safeTrim(?string $value): string
 {
     $value = $value ?? '';
@@ -43,16 +95,93 @@ function safeTrim(?string $value): string
     return implode("\n", $lines);
 }
 
+function ensureDirectory(string $path): bool
+{
+    if (is_dir($path)) {
+        return true;
+    }
+
+    return mkdir($path, 0755, true);
+}
+
+function isDirectoryEmpty(string $path): bool
+{
+    if (!is_dir($path)) {
+        return true;
+    }
+
+    $files = scandir($path);
+    if ($files === false) {
+        return false;
+    }
+
+    foreach ($files as $file) {
+        if ($file !== '.' && $file !== '..') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function collectSyncMetrics(string $repoPath, string $upstreamRef): array
+{
+    $metrics = [
+        'workingTreeClean' => null,
+        'remoteReachable' => null,
+        'aheadCount' => null,
+        'behindCount' => null,
+    ];
+
+    $workingTree = runGitCommand($repoPath, 'git status --porcelain');
+    $metrics['workingTreeClean'] = $workingTree === '';
+
+    $lsRemoteOutput = runGitCommand($repoPath, 'git ls-remote --exit-code origin HEAD');
+    $metrics['remoteReachable'] = $lsRemoteOutput !== '' && !str_starts_with($lsRemoteOutput, 'fatal:');
+
+    if ($upstreamRef !== '') {
+        $aheadBehind = safeTrim(runGitCommand($repoPath, 'git rev-list --left-right --count ' . escapeshellarg($upstreamRef . '...HEAD')));
+        if ($aheadBehind !== '' && !str_starts_with($aheadBehind, 'fatal:')) {
+            $parts = preg_split('/\s+/', trim($aheadBehind));
+            if (count($parts) >= 2) {
+                $metrics['behindCount'] = (int) $parts[0];
+                $metrics['aheadCount'] = (int) $parts[1];
+            }
+        }
+    }
+
+    return $metrics;
+}
+
 $currentBranch = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD')) : '';
 $localCommit = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD')) : '';
 $upstreamRef = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref --symbolic-full-name @{u}')) : '';
 $remoteCommit = '';
+$remoteUrl = $isGitRepo ? safeTrim(runGitCommand($repoPath, 'git config --get remote.origin.url')) : '';
+$originConfigured = $remoteUrl !== '';
 
 if ($isGitRepo) {
+    if (!$originConfigured) {
+        $escapedOrigin = escapeshellarg($canonicalRepoUrl);
+        $addedOrigin = safeTrim(runGitCommand($repoPath, "git remote add origin {$escapedOrigin}"));
+        $commandOutput['Remote'] = $addedOrigin !== '' ? $addedOrigin : 'origin set to canonical repository.';
+        $remoteUrl = $canonicalRepoUrl;
+        $originConfigured = true;
+    }
+
     if ($upstreamRef === '' || str_starts_with($upstreamRef, 'fatal:')) {
         $upstreamRef = 'origin/main';
     }
-    $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
+    if (str_starts_with($remoteCommit, 'fatal:')) {
+        $remoteCommit = '';
+    }
+
+    $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+    $workingTreeClean = $metrics['workingTreeClean'];
+    $remoteReachable = $metrics['remoteReachable'];
+    $aheadCount = $metrics['aheadCount'];
+    $behindCount = $metrics['behindCount'];
 }
 
 if ($action === 'check' && $isGitRepo) {
@@ -63,7 +192,16 @@ if ($action === 'check' && $isGitRepo) {
     $statusMessage = 'Fetched latest metadata. Compare local and remote commits below.';
     $statusType = 'info';
 
-    $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
+    if (str_starts_with($remoteCommit, 'fatal:')) {
+        $remoteCommit = '';
+    }
+
+    $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+    $workingTreeClean = $metrics['workingTreeClean'];
+    $remoteReachable = $metrics['remoteReachable'];
+    $aheadCount = $metrics['aheadCount'];
+    $behindCount = $metrics['behindCount'];
 }
 
 if ($action === 'update' && $isGitRepo) {
@@ -78,7 +216,62 @@ if ($action === 'update' && $isGitRepo) {
 
     $currentBranch = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD'));
     $localCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD'));
-    $remoteCommit = safeTrim(runGitCommand($repoPath, "git rev-parse {$upstreamRef}"));
+    $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
+    if (str_starts_with($remoteCommit, 'fatal:')) {
+        $remoteCommit = '';
+    }
+
+    $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+    $workingTreeClean = $metrics['workingTreeClean'];
+    $remoteReachable = $metrics['remoteReachable'];
+    $aheadCount = $metrics['aheadCount'];
+    $behindCount = $metrics['behindCount'];
+}
+
+if ($action === 'clone' && $gitAvailable && !$isGitRepo) {
+    $cloneTarget = $repoPath;
+    $parentDir = dirname($cloneTarget);
+    $commandOutput['Validation'] = '';
+
+    if (!is_dir($parentDir) && !ensureDirectory($parentDir)) {
+        $statusMessage = 'Failed to create parent directory for the repository path.';
+        $statusType = 'error';
+    } elseif (file_exists($cloneTarget) && !is_dir($cloneTarget)) {
+        $statusMessage = 'Repository path points to a file. Please choose a directory.';
+        $statusType = 'error';
+    } elseif (!isDirectoryEmpty($cloneTarget) && !is_dir($cloneTarget . DIRECTORY_SEPARATOR . '.git')) {
+        $statusMessage = 'Repository path is not empty. Please point to an empty directory or existing Git repo.';
+        $statusType = 'error';
+    } else {
+        ensureDirectory($cloneTarget);
+        $cloneCommand = sprintf('git clone --depth 1 %s %s', escapeshellarg($canonicalRepoUrl), escapeshellarg($cloneTarget));
+        $cloneOutput = runShellCommand($cloneCommand);
+        $commandOutput['Clone'] = $cloneOutput;
+        $isGitRepo = is_dir($gitMarker) || is_file($gitMarker);
+
+        if ($isGitRepo) {
+            $statusMessage = 'Repository cloned successfully from GitHub.';
+            $statusType = 'success';
+            $remoteUrl = $canonicalRepoUrl;
+            $originConfigured = true;
+            $currentBranch = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref HEAD'));
+            $localCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse HEAD'));
+            $upstreamRef = safeTrim(runGitCommand($repoPath, 'git rev-parse --abbrev-ref --symbolic-full-name @{u}')) ?: 'origin/main';
+            $remoteCommit = safeTrim(runGitCommand($repoPath, 'git rev-parse ' . escapeshellarg($upstreamRef)));
+            if (str_starts_with($remoteCommit, 'fatal:')) {
+                $remoteCommit = '';
+            }
+
+            $metrics = collectSyncMetrics($repoPath, $upstreamRef);
+            $workingTreeClean = $metrics['workingTreeClean'];
+            $remoteReachable = $metrics['remoteReachable'];
+            $aheadCount = $metrics['aheadCount'];
+            $behindCount = $metrics['behindCount'];
+        } else {
+            $statusMessage = 'Clone failed. Review the output below for details.';
+            $statusType = 'error';
+        }
+    }
 }
 
 ?>
@@ -104,7 +297,14 @@ if ($action === 'update' && $isGitRepo) {
         <?php elseif (!$isGitRepo): ?>
             <div class="bg-yellow-500/10 border border-yellow-500/40 text-yellow-200 rounded-lg p-4 mb-6">
                 <p class="font-semibold mb-1">Repository not detected at <code><?php echo htmlspecialchars($repoPath); ?></code>.</p>
-                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below. We automatically scan parent folders for <code>.git</code> (detected: <code><?php echo htmlspecialchars($autoDetectedRepoPath ?? 'none'); ?></code>).</p>
+                <p class="text-sm">Make sure the Docker app files include the <code>.git</code> folder or adjust the path below. You can also set <code>AMPNM_REPO_PATH</code> in the container to point directly to the mounted repository (e.g., <code>/var/www/html/ampnm-project</code>) or clone the official repo into that path.</p>
+                <?php if (empty($autoDetectedRepoPath) && !empty($autoDetection['attempts'])): ?>
+                    <p class="text-xs text-yellow-100 mt-2">
+                        Checked automatically: <code><?php echo htmlspecialchars(implode(', ', $autoDetection['attempts'])); ?></code>
+                    </p>
+                <?php elseif (!empty($autoDetectedRepoPath)): ?>
+                    <p class="text-xs text-yellow-100 mt-2">Nearest <code>.git</code> found at <code><?php echo htmlspecialchars($autoDetectedRepoPath); ?></code>.</p>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
 
@@ -148,8 +348,48 @@ if ($action === 'update' && $isGitRepo) {
                             <dd class="font-mono text-slate-100 mt-1"><?php echo $remoteCommit ?: 'Unknown'; ?></dd>
                         </div>
                         <div>
+                            <dt class="text-slate-400">Remote Origin</dt>
+                            <dd class="font-mono text-slate-100 mt-1 break-all"><?php echo $remoteUrl ?: $canonicalRepoUrl; ?></dd>
+                        </div>
+                        <div>
+                            <dt class="text-slate-400">Remote Reachability</dt>
+                            <dd class="mt-1">
+                                <?php if ($remoteReachable === true): ?>
+                                    <span class="text-emerald-200">Reachable (ls-remote succeeded)</span>
+                                <?php elseif ($remoteReachable === false): ?>
+                                    <span class="text-amber-200">Not reachable yet</span>
+                                <?php else: ?>
+                                    <span class="text-slate-400">n/a</span>
+                                <?php endif; ?>
+                            </dd>
+                        </div>
+                        <div>
                             <dt class="text-slate-400">Sync Target</dt>
                             <dd class="mt-1">github.com/pranto48/ampnm-project.git</dd>
+                        </div>
+                        <div>
+                            <dt class="text-slate-400">Ahead / Behind</dt>
+                            <dd class="mt-1">
+                                <?php if ($aheadCount !== null && $behindCount !== null): ?>
+                                    <span class="text-emerald-200"><?php echo $aheadCount; ?> ahead</span>
+                                    <span class="text-slate-500"> / </span>
+                                    <span class="text-amber-200"><?php echo $behindCount; ?> behind</span>
+                                <?php else: ?>
+                                    <span class="text-slate-400">n/a</span>
+                                <?php endif; ?>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-slate-400">Working Tree</dt>
+                            <dd class="mt-1">
+                                <?php if ($workingTreeClean === true): ?>
+                                    <span class="text-emerald-200">Clean</span>
+                                <?php elseif ($workingTreeClean === false): ?>
+                                    <span class="text-amber-200">Uncommitted changes present</span>
+                                <?php else: ?>
+                                    <span class="text-slate-400">Unknown</span>
+                                <?php endif; ?>
+                            </dd>
                         </div>
                     </dl>
                     <p class="text-xs text-slate-500 mt-3">If commits differ, use "Fetch Latest" to compare or "Apply Update" to pull the newest code into this container.</p>
@@ -162,7 +402,7 @@ if ($action === 'update' && $isGitRepo) {
                             <input type="hidden" name="action" value="check">
                             <label class="block text-sm text-slate-400">Repository Path</label>
                             <input type="text" name="repo_path" value="<?php echo htmlspecialchars($repoPath); ?>" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="/var/www/html/docker-ampnm">
-                            <button type="submit" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center justify-center gap-2<?php echo !$isGitRepo ? ' opacity-60 cursor-not-allowed' : ''; ?>" <?php echo !$isGitRepo ? 'disabled aria-disabled="true"' : ''; ?>>
                                 <i class="fas fa-sync-alt"></i>
                                 <span>Fetch Latest</span>
                             </button>
@@ -172,12 +412,24 @@ if ($action === 'update' && $isGitRepo) {
                             <input type="hidden" name="action" value="update">
                             <label class="block text-sm text-slate-400">Repository Path</label>
                             <input type="text" name="repo_path" value="<?php echo htmlspecialchars($repoPath); ?>" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            <button type="submit" class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg flex items-center justify-center gap-2">
+                            <button type="submit" class="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg flex items-center justify-center gap-2<?php echo !$isGitRepo ? ' opacity-60 cursor-not-allowed' : ''; ?>" <?php echo !$isGitRepo ? 'disabled aria-disabled="true"' : ''; ?>>
                                 <i class="fas fa-cloud-download-alt"></i>
                                 <span>Apply Update</span>
                             </button>
-                            <p class="text-xs text-slate-500">Runs <code>git fetch --all</code> then <code>git pull --ff-only</code> to sync the Docker app with the latest release.</p>
+                            <p class="text-xs text-slate-500">Runs <code>git fetch --all</code> then <code>git pull --ff-only</code> to sync the Docker app with the latest release. Remote <code>origin</code> is auto-set to the canonical GitHub URL when missing.</p>
                         </form>
+                        <?php if (!$isGitRepo && $gitAvailable): ?>
+                            <form method="POST" class="space-y-3 md:col-span-2">
+                                <input type="hidden" name="action" value="clone">
+                                <label class="block text-sm text-slate-400">Clone into Path</label>
+                                <input type="text" name="repo_path" value="<?php echo htmlspecialchars($repoPath); ?>" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="/var/www/html/ampnm-project">
+                                <button type="submit" class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center justify-center gap-2">
+                                    <i class="fas fa-cloud-download-alt"></i>
+                                    <span>Clone from GitHub</span>
+                                </button>
+                                <p class="text-xs text-slate-500">Creates (if needed) the directory and performs <code>git clone --depth 1</code> from <code><?php echo htmlspecialchars($canonicalRepoUrl); ?></code> so updates can be applied.</p>
+                            </form>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -212,9 +464,50 @@ if ($action === 'update' && $isGitRepo) {
                     <h3 class="text-lg font-semibold text-white mb-3">Tips</h3>
                     <ul class="list-disc list-inside space-y-2 text-sm text-slate-300">
                         <li>Ensure the container has outbound internet access to reach GitHub.</li>
+                        <li>If <span class="font-semibold">Remote Reachability</span> shows "Not reachable", verify DNS/proxy settings and that <code>github.com</code> is accessible from the container.</li>
                         <li>Commit or back up any local changes before pulling to avoid merge conflicts.</li>
                         <li>If you maintain a fork, change the repository path to your mounted code directory inside the container.</li>
+                        <li>If the code was copied without <code>.git</code>, use "Clone from GitHub" to pull a fresh working copy into the desired path.</li>
                     </ul>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5 shadow-lg">
+                    <h3 class="text-lg font-semibold text-white mb-3">Environment & tooling</h3>
+                    <dl class="space-y-3 text-sm text-slate-300">
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">Container hostname</dt>
+                            <dd class="font-mono text-slate-100"><?php echo htmlspecialchars($containerHostname); ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">PHP user</dt>
+                            <dd class="font-mono text-slate-100"><?php echo htmlspecialchars($phpUser); ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">Git binary</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $gitAvailable ? htmlspecialchars($gitBinary) : 'Not found'; ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">Node</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $nodeVersion !== '' ? htmlspecialchars($nodeVersion) : 'Not installed'; ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">npm</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $npmVersion !== '' ? htmlspecialchars($npmVersion) : 'Not installed'; ?></dd>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <dt class="text-slate-400">pnpm</dt>
+                            <dd class="font-mono text-slate-100"><?php echo $pnpmVersion !== '' ? htmlspecialchars($pnpmVersion) : 'Not installed'; ?></dd>
+                        </div>
+                    </dl>
+                    <p class="text-xs text-slate-500 mt-3">Use these details when installing dependencies or troubleshooting why fetch/pull commands might fail in this container.</p>
+                </div>
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5 shadow-lg">
+                    <h3 class="text-lg font-semibold text-white mb-3">After updating</h3>
+                    <ul class="list-disc list-inside space-y-2 text-sm text-slate-300">
+                        <li>Rebuild the frontend bundles from the repo root:<br><code class="block bg-slate-900 border border-slate-700 rounded mt-1 p-2">pnpm install<br>pnpm run build && pnpm run build:server</code></li>
+                        <li>Restart the Docker services to pick up new assets:<br><code class="block bg-slate-900 border border-slate-700 rounded mt-1 p-2">docker compose down<br>docker compose up -d --build</code></li>
+                        <li>Verify the portal at <code>https://portal.itsupport.com.bd</code> and the Docker app at <code>/docker-ampnm</code> both reflect the latest commit hashes above.</li>
+                    </ul>
+                    <p class="text-xs text-slate-500 mt-3">Run these commands inside the same container or host where the repository is mounted. Adjust the compose project name or paths if you keep the stack elsewhere.</p>
                 </div>
             </div>
         </div>
