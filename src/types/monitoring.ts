@@ -2,12 +2,17 @@ export type HostStatus = 'up' | 'down' | 'warning' | 'unknown';
 export type ServiceStatus = 'ok' | 'warning' | 'critical' | 'unknown';
 export type CheckType = 'ping' | 'http' | 'https' | 'tcp' | 'custom';
 export type AlertSeverity = 'info' | 'warning' | 'critical';
+export type DeviceType = 'server' | 'switch' | 'router' | 'firewall' | 'docker' | 'cloud';
 
 export interface Host {
   id: string;
   name: string;
   ip_address: string;
   description?: string;
+  device_type?: DeviceType;
+  api_username?: string;
+  api_password?: string;
+  api_port?: number;
   status: HostStatus;
   last_check?: string;
   created_at: string;
