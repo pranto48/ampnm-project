@@ -78,6 +78,9 @@ $page_title = "Documentation - AMPNM User Manual";
                         <a href="#monitoring" class="block px-3 py-2 rounded transition">
                             <i class="fas fa-heartbeat mr-2"></i>Monitoring
                         </a>
+                        <a href="#windows-agent" class="block px-3 py-2 rounded transition">
+                            <i class="fas fa-microchip mr-2"></i>Windows Agent
+                        </a>
                         <a href="#notifications" class="block px-3 py-2 rounded transition">
                             <i class="fas fa-bell mr-2"></i>Notifications
                         </a>
@@ -336,6 +339,54 @@ $page_title = "Documentation - AMPNM User Manual";
                             <li>Old status → New status</li>
                             <li>Details (latency, packet loss, error message)</li>
                         </ul>
+                    </section>
+
+                    <!-- Windows Agent -->
+                    <section id="windows-agent" class="doc-section">
+                        <h2 class="text-3xl font-bold text-cyan-400 mb-4">
+                            <i class="fas fa-microchip mr-2"></i>Windows Usage Agent
+                        </h2>
+
+                        <p class="mb-4">Collect CPU, memory, disk, network, and GPU utilization from Windows Server/PCs and push it into AMPNM over HTTPS.</p>
+
+                        <div class="bg-slate-700 p-4 rounded mb-4">
+                            <h3 class="font-semibold text-lg mb-2"><i class="fas fa-key mr-2 text-cyan-400"></i>Secure the agent endpoint</h3>
+                            <ol class="list-decimal list-inside space-y-2">
+                                <li>Set an agent token on the Docker server: <code class="bg-slate-800 px-2 py-1 rounded">export WINDOWS_AGENT_TOKEN=&lt;strong-random-secret&gt;</code></li>
+                                <li>Restart the AMPNM container/service so the API uses the new token.</li>
+                                <li>Use the same token inside your Windows script when posting metrics.</li>
+                            </ol>
+                            <p class="text-sm text-slate-300 mt-2">Endpoints (all require the <code>X-Agent-Token</code> header):</p>
+                            <ul class="list-disc list-inside ml-4 text-sm space-y-1">
+                                <li><code>POST /api/agent/windows-metrics</code> — ingest a new snapshot</li>
+                                <li><code>GET /api/agent/windows-metrics/recent?limit=50</code> — review the latest submissions</li>
+                                <li><code>GET /api/agent/windows-metrics/&lt;HOSTNAME&gt;/latest</code> — fetch the newest entry for one host</li>
+                            </ul>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="bg-slate-700 p-4 rounded">
+                                <h3 class="font-semibold text-lg mb-2"><i class="fas fa-terminal mr-2 text-cyan-400"></i>Drop-in .bat helper</h3>
+                                <p class="text-sm mb-3">Copy the included batch file to your Windows host, edit the server URL and token, then run it or schedule it in Task Scheduler.</p>
+                                <div class="code-block text-xs">
+                                    <code>@echo off
+set SERVER_URL=http://YOUR_DOCKER_HOST:3001/api/agent/windows-metrics
+set AGENT_TOKEN=&lt;token&gt;
+
+powershell -NoProfile -Command "# Collect CPU/memory/disk/network/GPU and POST JSON with X-Agent-Token header"</code>
+                                </div>
+                                <p class="text-xs text-slate-300 mt-2">File: <code>assets/windows-monitor-agent.bat</code></p>
+                            </div>
+                            <div class="bg-slate-700 p-4 rounded">
+                                <h3 class="font-semibold text-lg mb-2"><i class="fas fa-tasks mr-2 text-cyan-400"></i>Scheduling tips</h3>
+                                <ul class="list-disc list-inside space-y-2 text-sm">
+                                    <li>Create a Task Scheduler job that runs the .bat every 5–15 minutes using a service account.</li>
+                                    <li>Remove the final <code>pause</code> line in the .bat when running unattended.</li>
+                                    <li>Use HTTPS if the AMPNM UI is exposed on TLS; include the full port in <code>SERVER_URL</code>.</li>
+                                    <li>Verify ingestion with <code>curl -H "X-Agent-Token: &lt;token&gt;" http://HOST:3001/api/agent/windows-metrics/recent</code>.</li>
+                                </ul>
+                            </div>
+                        </div>
                     </section>
 
                     <!-- Notifications -->

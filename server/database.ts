@@ -86,11 +86,27 @@ export function initializeDatabase() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS agent_windows_metrics (
+      id TEXT PRIMARY KEY,
+      host_name TEXT NOT NULL,
+      host_ip TEXT,
+      cpu_percent REAL,
+      memory_percent REAL,
+      disk_free_gb REAL,
+      disk_total_gb REAL,
+      network_in_mbps REAL,
+      network_out_mbps REAL,
+      gpu_percent REAL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_services_host_id ON services(host_id);
     CREATE INDEX IF NOT EXISTS idx_monitoring_history_service_id ON monitoring_history(service_id);
     CREATE INDEX IF NOT EXISTS idx_alerts_service_id ON alerts(service_id);
     CREATE INDEX IF NOT EXISTS idx_alerts_acknowledged ON alerts(acknowledged);
     CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
+    CREATE INDEX IF NOT EXISTS idx_agent_metrics_host ON agent_windows_metrics(host_name);
+    CREATE INDEX IF NOT EXISTS idx_agent_metrics_created ON agent_windows_metrics(created_at);
   `);
 
   const hostColumns = db.prepare(`PRAGMA table_info(hosts)`).all() as { name: string }[];
