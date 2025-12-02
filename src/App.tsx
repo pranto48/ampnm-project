@@ -17,6 +17,18 @@ interface LicenseStatus {
   checked_at: string;
 }
 
+const LICENSE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+
+interface LicenseStatus {
+  activated: boolean;
+  customer_name?: string;
+  max_hosts?: number;
+  expiry_date?: string;
+  expired?: boolean;
+  status?: string;
+  checked_at: string;
+}
+
 function App() {
   const [view, setView] = useState<'dashboard' | 'topology'>('dashboard');
   const [hostsWithServices, setHostsWithServices] = useState<HostWithServices[]>([]);
