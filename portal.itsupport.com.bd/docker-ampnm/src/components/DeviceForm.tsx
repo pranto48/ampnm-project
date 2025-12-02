@@ -21,6 +21,9 @@ const deviceSchema = z.object({
   ping_interval: z.coerce.number().int().positive().optional().nullable(),
   icon_size: z.coerce.number().int().min(20).max(100).optional().nullable(),
   name_text_size: z.coerce.number().int().min(8).max(24).optional().nullable(),
+  router_api_username: z.string().optional().nullable(),
+  router_api_password: z.string().optional().nullable(),
+  router_api_port: z.coerce.number().int().positive().optional().nullable(),
   warning_latency_threshold: z.coerce.number().int().positive().optional().nullable(),
   warning_packetloss_threshold: z.coerce.number().int().positive().max(100).optional().nullable(),
   critical_latency_threshold: z.coerce.number().int().positive().optional().nullable(),
@@ -53,6 +56,9 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
       ping_interval: initialData?.ping_interval || undefined,
       icon_size: initialData?.icon_size || 50,
       name_text_size: initialData?.name_text_size || 14,
+      router_api_username: initialData?.router_api_username || '',
+      router_api_password: initialData?.router_api_password || '',
+      router_api_port: initialData?.router_api_port || 8728,
       warning_latency_threshold: initialData?.warning_latency_threshold || undefined,
       warning_packetloss_threshold: initialData?.warning_packetloss_threshold || undefined,
       critical_latency_threshold: initialData?.critical_latency_threshold || undefined,
@@ -60,6 +66,16 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
       show_live_ping: initialData?.show_live_ping || false,
     },
   });
+
+  const selectedIcon = form.watch('icon');
+  const routerApiUsername = form.watch('router_api_username');
+  const routerApiPassword = form.watch('router_api_password');
+
+  const showRouterApi =
+    (selectedIcon && selectedIcon.includes('router')) ||
+    !!routerApiUsername ||
+    !!routerApiPassword ||
+    initialData?.router_api_port !== undefined;
 
   const handleSubmit = (values: z.infer<typeof deviceSchema>) => {
     onSubmit(values);
@@ -115,6 +131,66 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                 </FormItem>
               )}
             />
+
+            {showRouterApi && (
+              <Card className="bg-slate-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">MikroTik API Credentials</CardTitle>
+                  <CardDescription className="text-sm">
+                    Provide the RouterOS API account (from the MikroTik setup guide) so AMPNM can poll interface traffic over port 8728.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-0">
+                  <FormField
+                    control={form.control}
+                    name="router_api_username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Username</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ampnm-monitor" {...field} />
+                        </FormControl>
+                        <FormDescription>Matches the RouterOS user you created for traffic monitoring.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="router_api_password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="ampnmPass value" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="router_api_port"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Port</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="8728"
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
+                          />
+                        </FormControl>
+                        <FormDescription>Default RouterOS API port is 8728.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            )}
             <FormField
               control={form.control}
               name="icon"
@@ -144,8 +220,9 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                         ))}
                       </select>
                       <FormDescription>
-                        Browse the open-source icon gallery, filter by category, and pick the device icon you prefer. You can also
-                        quickly choose from the dropdown list above if the gallery dialog is not visible.
+                        Browse the open-source icon gallery, filter by category, or use the quick router/docker galleries to see
+                        multiple icon styles at once. Choosing any router icon will also reveal the MikroTik API credential inputs.
+                        You can also quickly choose from the dropdown list above if the gallery dialog is not visible.
                       </FormDescription>
                     </div>
                   </FormControl>
