@@ -68,6 +68,14 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
   });
 
   const selectedIcon = form.watch('icon');
+  const routerApiUsername = form.watch('router_api_username');
+  const routerApiPassword = form.watch('router_api_password');
+
+  const showRouterApi =
+    (selectedIcon && selectedIcon.includes('router')) ||
+    !!routerApiUsername ||
+    !!routerApiPassword ||
+    initialData?.router_api_port !== undefined;
 
   const handleSubmit = (values: z.infer<typeof deviceSchema>) => {
     onSubmit(values);
@@ -124,7 +132,7 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
               )}
             />
 
-            {selectedIcon?.includes('router') && (
+            {showRouterApi && (
               <Card className="bg-slate-50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">MikroTik API Credentials</CardTitle>
@@ -213,8 +221,8 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                       </select>
                       <FormDescription>
                         Browse the open-source icon gallery, filter by category, or use the quick router/docker galleries to see
-                        multiple icon styles at once. You can also quickly choose from the dropdown list above if the gallery dialog
-                        is not visible.
+                        multiple icon styles at once. Choosing any router icon will also reveal the MikroTik API credential inputs.
+                        You can also quickly choose from the dropdown list above if the gallery dialog is not visible.
                       </FormDescription>
                     </div>
                   </FormControl>
