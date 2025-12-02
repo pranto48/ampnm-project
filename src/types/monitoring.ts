@@ -4,6 +4,20 @@ export type CheckType = 'ping' | 'http' | 'https' | 'tcp' | 'custom';
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 export type DeviceType = 'server' | 'switch' | 'router' | 'firewall' | 'docker' | 'cloud';
 
+export interface WindowsMetricSummary {
+  host_name: string;
+  host_ip?: string | null;
+  cpu_percent?: number | null;
+  memory_percent?: number | null;
+  disk_free_gb?: number | null;
+  disk_total_gb?: number | null;
+  network_in_mbps?: number | null;
+  network_out_mbps?: number | null;
+  gpu_percent?: number | null;
+  created_at: string;
+  stale?: boolean;
+}
+
 export interface Host {
   id: string;
   name: string;
@@ -55,4 +69,5 @@ export interface Alert {
 
 export interface HostWithServices extends Host {
   services: Service[];
+  windows_metric?: WindowsMetricSummary;
 }

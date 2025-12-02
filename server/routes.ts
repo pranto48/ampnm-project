@@ -248,6 +248,38 @@ router.get('/agent/windows-metrics/:host/latest', (req, res) => {
   }
 });
 
+router.get('/windows-metrics/latest', (req, res) => {
+  try {
+    const staleMinutes = parseInt((req.query.staleMinutes as string) || '15', 10);
+    const staleCutoff = Date.now() - Math.max(1, staleMinutes) * 60 * 1000;
+
+    const metrics = db
+      .prepare(`
+        SELECT * FROM agent_windows_metrics
+        ORDER BY host_name ASC, datetime(created_at) DESC
+      `)
+      .all();
+
+    const latestByHost = new Map<string, any>();
+    metrics.forEach((row: any) => {
+      const key = (row.host_name || '').toLowerCase();
+      if (!key) return;
+      if (!latestByHost.has(key)) {
+        latestByHost.set(key, row);
+      }
+    });
+
+    const response = Array.from(latestByHost.values()).map((metric: any) => ({
+      ...metric,
+      stale: new Date(metric.created_at).getTime() < staleCutoff,
+    }));
+
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/license/activate', (req, res) => {
   try {
     const { license_key, machine_id } = req.body;

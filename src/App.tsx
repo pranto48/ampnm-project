@@ -2,8 +2,20 @@ import { useState, useEffect } from 'react';
 import { Network } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import NetworkTopology from './components/NetworkTopology';
-import { hostsApi, servicesApi, licenseApi } from './lib/api';
-import { Host, Service, HostWithServices } from './types/monitoring';
+import { hostsApi, servicesApi, licenseApi, windowsAgentApi } from './lib/api';
+import { Host, Service, HostWithServices, WindowsMetricSummary } from './types/monitoring';
+
+const LICENSE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+
+interface LicenseStatus {
+  activated: boolean;
+  customer_name?: string;
+  max_hosts?: number;
+  expiry_date?: string;
+  expired?: boolean;
+  status?: string;
+  checked_at: string;
+}
 
 const LICENSE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 
@@ -47,17 +59,76 @@ function App() {
 
   const fetchHostsWithServices = async () => {
     try {
-      const [hostsRes, servicesRes] = await Promise.all([
+      const [hostsRes, servicesRes, windowsMetricsRes] = await Promise.all([
         hostsApi.getAll(),
-        servicesApi.getAll()
+        servicesApi.getAll(),
+        windowsAgentApi.getLatestMetrics().catch(() => ({ data: [] })),
       ]);
 
+      const windowsMetrics: WindowsMetricSummary[] = windowsMetricsRes?.data || [];
+      const metricsByName = new Map(
+        windowsMetrics
+          .filter((metric) => metric.host_name)
+          .map((metric) => [metric.host_name.toLowerCase(), metric])
+      );
+      const metricsByIp = new Map(
+        windowsMetrics
+          .filter((metric) => metric.host_ip)
+          .map((metric) => [String(metric.host_ip), metric])
+      );
+
       if (hostsRes.data && servicesRes.data) {
-        const hostsWithServicesData: HostWithServices[] = hostsRes.data.map((host: Host) => ({
-          ...host,
-          services: servicesRes.data.filter((service: Service) => service.host_id === host.id)
-        }));
-        setHostsWithServices(hostsWithServicesData);
+        const matchedMetrics = new Set<string>();
+
+        const hostsWithServicesData: HostWithServices[] = hostsRes.data.map((host: Host) => {
+          const normalizedName = host.name.toLowerCase();
+          const metricMatch =
+            metricsByName.get(normalizedName) || (host.ip_address && metricsByIp.get(host.ip_address));
+
+          if (metricMatch) {
+            matchedMetrics.add(metricMatch.host_name.toLowerCase());
+          }
+
+          const servicesForHost = servicesRes.data.filter(
+            (service: Service) => service.host_id === host.id
+          );
+
+          const statusFromMetrics: Host['status'] | undefined = metricMatch
+            ? metricMatch.stale
+              ? 'warning'
+              : 'up'
+            : undefined;
+
+          return {
+            ...host,
+            status: statusFromMetrics || host.status,
+            services: servicesForHost,
+            windows_metric: metricMatch,
+          };
+        });
+
+        const virtualHosts: HostWithServices[] = windowsMetrics
+          .filter((metric) => metric.host_name && !matchedMetrics.has(metric.host_name.toLowerCase()))
+          .map((metric) => {
+            const created = metric.created_at || new Date().toISOString();
+            const status: Host['status'] = metric.stale ? 'warning' : 'up';
+
+            return {
+              id: `agent-${metric.host_name}`,
+              name: metric.host_name,
+              ip_address: metric.host_ip || 'N/A',
+              description: 'Windows agent (virtual host)',
+              device_type: 'server',
+              status,
+              last_check: metric.created_at,
+              created_at: created,
+              updated_at: created,
+              services: [],
+              windows_metric: metric,
+            };
+          });
+
+        setHostsWithServices([...hostsWithServicesData, ...virtualHosts]);
       }
     } catch (error) {
       console.error('Error fetching hosts with services:', error);

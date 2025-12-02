@@ -387,6 +387,16 @@ powershell -NoProfile -Command "# Collect CPU/memory/disk/network/GPU and POST J
                                 </ul>
                             </div>
                         </div>
+
+                        <div class="bg-slate-700 p-4 rounded mt-4">
+                            <h3 class="font-semibold text-lg mb-2"><i class="fas fa-project-diagram mr-2 text-cyan-400"></i>Show Windows status on the Docker map</h3>
+                            <ol class="list-decimal list-inside space-y-2 text-sm">
+                                <li>Add the Windows host in AMPNM (Topology tab) with the same <strong>Host Name</strong> or IP that the .bat script reports.</li>
+                                <li>When the agent posts metrics, the map ring turns <span class="text-amber-300">amber</span> if the feed is stale and <span class="text-green-300">green</span> when fresh, and the CPU/RAM/Disk/Net values render under the node.</li>
+                                <li>If you haven’t created the host yet, the newest agent report still appears as a virtual Windows node so you can spot it on the map.</li>
+                                <li>Keep the <code>WINDOWS_AGENT_TOKEN</code> the same across your Windows hosts and Docker server; the UI automatically fetches the latest per-host metrics every time you open the map.</li>
+                            </ol>
+                        </div>
                     </section>
 
                     <!-- Notifications -->

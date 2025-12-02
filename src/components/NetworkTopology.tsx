@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Server, Router, Network, Boxes, Shield, Cloud, LucideIcon } from 'lucide-react';
+import { Server, Router, Network, Boxes, Shield, Cloud, LucideIcon, Gauge } from 'lucide-react';
 import { HostWithServices, DeviceType } from '../types/monitoring';
 
 interface NetworkTopologyProps {
@@ -83,12 +83,32 @@ export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
             if (!pos) return null;
 
             const DeviceIcon = getDeviceIcon(host.device_type as DeviceType);
+            const metric = host.windows_metric;
 
             const statusColors = {
               up: '#10B981',
               down: '#EF4444',
               warning: '#F59E0B',
               unknown: '#6B7280'
+            };
+
+            const nodeStatus = metric ? (metric.stale ? 'warning' : 'up') : host.status;
+
+            const formatPercent = (value?: number | null) =>
+              typeof value === 'number' ? `${Math.round(value)}%` : '—';
+
+            const formatDisk = (free?: number | null, total?: number | null) => {
+              if (typeof free === 'number' && typeof total === 'number') {
+                return `${Math.round(free)} / ${Math.round(total)} GB`;
+              }
+              return '—';
+            };
+
+            const formatThroughput = (value?: number | null) => {
+              if (typeof value === 'number') {
+                return `${Math.round(value)} Mbps`;
+              }
+              return '—';
             };
 
             return (
@@ -98,7 +118,7 @@ export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
                   cy={pos.y}
                   r="30"
                   fill="white"
-                  stroke={statusColors[host.status]}
+                  stroke={statusColors[nodeStatus]}
                   strokeWidth="3"
                   className="drop-shadow-md"
                 />
@@ -128,6 +148,35 @@ export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
                 >
                   {host.ip_address}
                 </text>
+
+                {metric && (
+                  <>
+                    <text
+                      x={pos.x}
+                      y={pos.y + 71}
+                      textAnchor="middle"
+                      className="text-[11px] fill-gray-700"
+                    >
+                      CPU {formatPercent(metric.cpu_percent)} · RAM {formatPercent(metric.memory_percent)}
+                    </text>
+                    <text
+                      x={pos.x}
+                      y={pos.y + 84}
+                      textAnchor="middle"
+                      className="text-[11px] fill-gray-700"
+                    >
+                      Disk {formatDisk(metric.disk_free_gb, metric.disk_total_gb)} · Net {formatThroughput(metric.network_in_mbps)} / {formatThroughput(metric.network_out_mbps)}
+                    </text>
+                    <text
+                      x={pos.x}
+                      y={pos.y + 97}
+                      textAnchor="middle"
+                      className="text-[11px] fill-gray-600"
+                    >
+                      {metric.stale ? 'Agent stale' : `Updated ${new Date(metric.created_at).toLocaleTimeString()}`}
+                    </text>
+                  </>
+                )}
 
                 {host.services.map((service, idx) => {
                   const serviceAngle = (idx / host.services.length) * 2 * Math.PI;
@@ -211,6 +260,10 @@ export default function NetworkTopology({ hosts }: NetworkTopologyProps) {
         <div className="flex items-center space-x-2">
           <Cloud className="w-4 h-4 text-gray-700" />
           <span>Cloud</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Gauge className="w-4 h-4 text-gray-700" />
+          <span>Windows agent metrics</span>
         </div>
       </div>
     </div>
