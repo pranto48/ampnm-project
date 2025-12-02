@@ -35,10 +35,6 @@ function buildTitle(device) {
 }
 
 function renderMap({ map, devices, edges }) {
-    loader.hidden = true;
-    statusMessage.querySelector(".text").textContent = "Live view ready";
-    statusMessage.querySelector(".dot").classList.add("pulse");
-
     mapTitle.textContent = map?.name || "Shared network map";
     mapSubtitle.textContent = map?.public_view_enabled ? "Public viewing enabled" : "Read-only preview";
     metaSummary.textContent = `${devices.length} devices • ${edges.length} links`;
@@ -108,6 +104,20 @@ function renderMap({ map, devices, edges }) {
     new vis.Network(canvas, data, options);
 }
 
+async function fetchWithTimeout(url, options = {}, timeout = 12000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        throw error;
+    }
+}
+
 async function loadMap() {
     if (!mapId) {
         showError("No map selected", "Append ?map_id=123 to view a shared map.");
@@ -126,7 +136,11 @@ async function loadMap() {
     });
 
     try {
-        const response = await fetch(`api.php?action=get_public_map_data&map_id=${mapId}`);
+        const response = await fetchWithTimeout(
+            `api.php?action=get_public_map_data&map_id=${mapId}`,
+            {},
+            12000
+        );
         if (!response.ok) {
             const detail = await response.text();
             showError("The map could not be loaded.", detail);
@@ -137,9 +151,21 @@ async function loadMap() {
             showError("No map data returned", "Ensure public view is enabled for this map.");
             return;
         }
+        const hasDevices = Array.isArray(payload.devices) && payload.devices.length > 0;
+        if (!hasDevices) {
+            statusMessage.querySelector(".text").textContent = "No devices published";
+            statusMessage.querySelector(".dot").classList.remove("pulse");
+            loader.querySelector("p").textContent = "No devices have been shared for this map yet.";
+            loader.hidden = false;
+        } else {
+            statusMessage.querySelector(".text").textContent = "Live view ready";
+            statusMessage.querySelector(".dot").classList.add("pulse");
+            loader.hidden = true;
+        }
         renderMap(payload);
     } catch (error) {
-        showError("Unexpected error", error.message);
+        const message = error.name === "AbortError" ? "Map request timed out" : "Unexpected error";
+        showError(message, error.message || "");
     }
 }
 

@@ -2,9 +2,27 @@ import express from 'express';
 import { db } from './database';
 import { v4 as uuidv4 } from 'uuid';
 import { performMonitoringChecks } from './monitoring';
-import crypto from 'crypto';
 
 const router = express.Router();
+
+const getAgentToken = () => process.env.WINDOWS_AGENT_TOKEN || 'ampnm-agent-token';
+const validateAgentToken = (req: express.Request, res: express.Response) => {
+  const provided =
+    (req.headers['x-agent-token'] as string) ||
+    (req.query.agent_token as string) ||
+    (req.body?.agent_token as string);
+
+  if (!provided || provided !== getAgentToken()) {
+    res.status(401).json({ error: 'Unauthorized agent request' });
+    return false;
+  }
+  return true;
+};
+
+const parseMetricNumber = (value: any) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
 
 router.get('/hosts', (req, res) => {
   try {
@@ -17,14 +35,25 @@ router.get('/hosts', (req, res) => {
 
 router.post('/hosts', (req, res) => {
   try {
-    const { name, ip_address, description } = req.body;
+    const { name, ip_address, description, device_type, api_username, api_password, api_port } = req.body;
     const id = uuidv4();
     const now = new Date().toISOString();
 
     db.prepare(`
-      INSERT INTO hosts (id, name, ip_address, description, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'unknown', ?, ?)
-    `).run(id, name, ip_address, description || null, now, now);
+      INSERT INTO hosts (id, name, ip_address, description, device_type, api_username, api_password, api_port, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'unknown', ?, ?)
+    `).run(
+      id,
+      name,
+      ip_address,
+      description || null,
+      device_type || 'server',
+      api_username || null,
+      api_password || null,
+      api_port || 8728,
+      now,
+      now
+    );
 
     const host = db.prepare('SELECT * FROM hosts WHERE id = ?').get(id);
     res.json(host);
@@ -120,6 +149,100 @@ router.post('/monitor/run', async (req, res) => {
   try {
     await performMonitoringChecks();
     res.json({ success: true, message: 'Monitoring check completed' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/agent/windows-metrics', (req, res) => {
+  if (!validateAgentToken(req, res)) {
+    return;
+  }
+
+  try {
+    const {
+      host_name,
+      host_ip,
+      cpu_percent,
+      memory_percent,
+      disk_free_gb,
+      disk_total_gb,
+      network_in_mbps,
+      network_out_mbps,
+      gpu_percent,
+    } = req.body || {};
+
+    if (!host_name) {
+      return res.status(400).json({ error: 'host_name is required' });
+    }
+
+    const id = uuidv4();
+    const now = new Date().toISOString();
+
+    db.prepare(
+      `INSERT INTO agent_windows_metrics (
+        id, host_name, host_ip, cpu_percent, memory_percent, disk_free_gb, disk_total_gb,
+        network_in_mbps, network_out_mbps, gpu_percent, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      id,
+      host_name,
+      host_ip || null,
+      parseMetricNumber(cpu_percent),
+      parseMetricNumber(memory_percent),
+      parseMetricNumber(disk_free_gb),
+      parseMetricNumber(disk_total_gb),
+      parseMetricNumber(network_in_mbps),
+      parseMetricNumber(network_out_mbps),
+      parseMetricNumber(gpu_percent),
+      now
+    );
+
+    res.json({ success: true, id, recorded_at: now });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/agent/windows-metrics/recent', (req, res) => {
+  if (!validateAgentToken(req, res)) {
+    return;
+  }
+
+  try {
+    const requestedLimit = parseInt((req.query.limit as string) || '50', 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.min(requestedLimit, 500))
+      : 50;
+    const metrics = db
+      .prepare(
+        `SELECT * FROM agent_windows_metrics ORDER BY datetime(created_at) DESC LIMIT ?`
+      )
+      .all(limit);
+    res.json(metrics);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/agent/windows-metrics/:host/latest', (req, res) => {
+  if (!validateAgentToken(req, res)) {
+    return;
+  }
+
+  try {
+    const host = req.params.host;
+    const metric = db
+      .prepare(
+        `SELECT * FROM agent_windows_metrics WHERE host_name = ? ORDER BY datetime(created_at) DESC LIMIT 1`
+      )
+      .get(host);
+
+    if (!metric) {
+      return res.status(404).json({ error: 'No metrics found for host' });
+    }
+
+    res.json(metric);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

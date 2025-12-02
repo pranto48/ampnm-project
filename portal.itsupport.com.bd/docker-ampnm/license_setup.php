@@ -62,8 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // License is valid, save it to app_settings
                     if (setAppLicenseKey($entered_license_key)) {
                         error_log("DEBUG: license_setup.php successfully saved license key: " . $entered_license_key);
-                        // Force re-verification to update session variables
-                        verifyLicenseWithPortal();
+                        // Force re-verification to update session variables immediately for the new key
+                        unset($_SESSION['license_last_verified']);
+                        unset($_SESSION['license_last_verified_key']);
+                        verifyLicenseWithPortal(true);
                         $message = '<div class="bg-green-500/20 border border-green-500/30 text-green-300 text-sm rounded-lg p-3 text-center">License key saved successfully! Redirecting...</div>';
                         header('Refresh: 3; url=index.php'); // Redirect to index after 3 seconds
                         exit;
