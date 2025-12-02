@@ -9,7 +9,7 @@
     <title>Public Network Map</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.css" />
-    <link rel="stylesheet" href="/assets/css/public-map.css">
+    <link rel="stylesheet" href="assets/css/public-map.css">
 </head>
 <body>
     <div class="page-shell">
@@ -24,7 +24,7 @@
                     <i class="fa-solid fa-link"></i>
                     <span>Copy share link</span>
                 </button>
-                <a id="openAdminBtn" class="pill-action subtle" href="/login.php">
+                <a id="openAdminBtn" class="pill-action subtle" href="login.php">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     <span>Open admin portal</span>
                 </a>
@@ -50,6 +50,6 @@
     </div>
 
     <script src="https://unpkg.com/vis-network@9.1.9/dist/vis-network.min.js"></script>
-    <script type="module" src="/assets/js/public-map.js"></script>
+    <script type="module" src="assets/js/public-map.js"></script>
 </body>
 </html>
