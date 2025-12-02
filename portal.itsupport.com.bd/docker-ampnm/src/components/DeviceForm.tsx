@@ -12,6 +12,52 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Link } from 'react-router-dom';
 import { IconPicker, ICON_OPTIONS } from './IconPicker';
 
+type DeviceType = 'router' | 'switch' | 'server' | 'firewall' | 'docker' | 'cloud';
+
+const TYPE_ICON_SETS: { id: DeviceType; label: string; icons: string[] }[] = [
+  {
+    id: 'router',
+    label: 'Router & Wireless',
+    icons: ['router', 'core-router', 'wireless-router', 'radio-tower-router', 'mikrotik-router'],
+  },
+  {
+    id: 'switch',
+    label: 'Switching & LAN',
+    icons: ['switch', 'l3-switch', 'wan-aggregator', 'wireless-bridge', 'wireless-bridge-router'],
+  },
+  {
+    id: 'server',
+    label: 'Server & Compute',
+    icons: ['server', 'rack', 'box', 'database', 'nas'],
+  },
+  {
+    id: 'firewall',
+    label: 'Security',
+    icons: ['firewall', 'branch-gateway', 'isp-peering', 'satellite-gateway', 'directional-antenna'],
+  },
+  {
+    id: 'docker',
+    label: 'Docker & Containers',
+    icons: ['docker-box', 'container', 'package', 'package-2', 'ship-wheel'],
+  },
+  {
+    id: 'cloud',
+    label: 'Cloud & Edge',
+    icons: ['cloud', 'satellite-link', 'satellite-gateway', 'ship-wheel', 'container-box'],
+  },
+];
+
+const detectTypeFromIcon = (icon: string): DeviceType => {
+  for (const set of TYPE_ICON_SETS) {
+    if (set.icons.includes(icon)) return set.id;
+  }
+  if (icon.includes('router')) return 'router';
+  if (icon.includes('switch')) return 'switch';
+  if (icon.includes('cloud')) return 'cloud';
+  if (icon.includes('docker') || icon.includes('container')) return 'docker';
+  return 'server';
+};
+
 const deviceSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   ip_address: z.string().optional().nullable(),
@@ -40,10 +86,17 @@ interface DeviceFormProps {
 export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceFormProps) => {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
+  const iconLookup = useMemo(
+    () => Object.fromEntries(ICON_OPTIONS.map(option => [option.value, option])),
+    [],
+  );
+
   const defaultIcon = useMemo(() => {
     const requestedIcon = initialData?.icon || initialData?.type;
     return ICON_OPTIONS.some(option => option.value === requestedIcon) ? requestedIcon : 'server';
   }, [initialData]);
+
+  const [deviceType, setDeviceType] = useState<DeviceType>(() => detectTypeFromIcon(defaultIcon));
 
   const form = useForm<z.infer<typeof deviceSchema>>({
     resolver: zodResolver(deviceSchema),
@@ -76,6 +129,14 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
     !!routerApiUsername ||
     !!routerApiPassword ||
     initialData?.router_api_port !== undefined;
+
+  const handleDeviceTypeChange = (type: DeviceType) => {
+    setDeviceType(type);
+    const recommendedIcons = TYPE_ICON_SETS.find(set => set.id === type)?.icons || [];
+    if (recommendedIcons.length > 0 && !recommendedIcons.includes(form.getValues('icon'))) {
+      form.setValue('icon', recommendedIcons[0]);
+    }
+  };
 
   const handleSubmit = (values: z.infer<typeof deviceSchema>) => {
     onSubmit(values);
@@ -198,7 +259,50 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                 <FormItem>
                   <FormLabel>Device Icon</FormLabel>
                   <FormControl>
-                    <div className="space-y-2">
+                    <div className="space-y-4">
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">Device Type</p>
+                          <select
+                            value={deviceType}
+                            onChange={event => handleDeviceTypeChange(event.target.value as DeviceType)}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                          >
+                            {TYPE_ICON_SETS.map(type => (
+                              <option key={type.id} value={type.id}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                          <FormDescription>
+                            Pick a type to see a curated set of five matching icons you can choose from immediately.
+                          </FormDescription>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Quick pick (5 per type)</p>
+                          <div className="grid grid-cols-5 gap-2">
+                            {(TYPE_ICON_SETS.find(set => set.id === deviceType)?.icons || []).map(iconValue => {
+                              const iconMeta = iconLookup[iconValue];
+                              const IconComponent = iconMeta?.Icon;
+                              return (
+                                <Button
+                                  key={iconValue}
+                                  type="button"
+                                  variant={field.value === iconValue ? 'default' : 'outline'}
+                                  className="h-auto flex flex-col items-center gap-1 px-2 py-3 text-xs"
+                                  onClick={() => field.onChange(iconValue)}
+                                >
+                                  {IconComponent && <IconComponent className="h-4 w-4" />}
+                                  <span className="text-[10px] leading-tight text-center">{iconMeta?.label || iconValue}</span>
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <FormDescription>
+                            Each type includes five defaults—select one above or open the full gallery for more options.
+                          </FormDescription>
+                        </div>
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
