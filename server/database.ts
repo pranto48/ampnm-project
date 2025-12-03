@@ -19,6 +19,10 @@ export function initializeDatabase() {
       name TEXT NOT NULL,
       ip_address TEXT NOT NULL,
       description TEXT,
+      device_type TEXT DEFAULT 'server',
+      api_username TEXT,
+      api_password TEXT,
+      api_port INTEGER DEFAULT 8728,
       status TEXT DEFAULT 'unknown',
       last_check TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -82,12 +86,50 @@ export function initializeDatabase() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS agent_windows_metrics (
+      id TEXT PRIMARY KEY,
+      host_name TEXT NOT NULL,
+      host_ip TEXT,
+      cpu_percent REAL,
+      memory_percent REAL,
+      disk_free_gb REAL,
+      disk_total_gb REAL,
+      network_in_mbps REAL,
+      network_out_mbps REAL,
+      gpu_percent REAL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_services_host_id ON services(host_id);
     CREATE INDEX IF NOT EXISTS idx_monitoring_history_service_id ON monitoring_history(service_id);
     CREATE INDEX IF NOT EXISTS idx_alerts_service_id ON alerts(service_id);
     CREATE INDEX IF NOT EXISTS idx_alerts_acknowledged ON alerts(acknowledged);
     CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
+    CREATE INDEX IF NOT EXISTS idx_agent_metrics_host ON agent_windows_metrics(host_name);
+    CREATE INDEX IF NOT EXISTS idx_agent_metrics_created ON agent_windows_metrics(created_at);
   `);
+
+  const hostColumns = db.prepare(`PRAGMA table_info(hosts)`).all() as { name: string }[];
+  const hasDeviceType = hostColumns.some((column) => column.name === 'device_type');
+  const hasApiUsername = hostColumns.some((column) => column.name === 'api_username');
+  const hasApiPassword = hostColumns.some((column) => column.name === 'api_password');
+  const hasApiPort = hostColumns.some((column) => column.name === 'api_port');
+
+  if (!hasDeviceType) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN device_type TEXT DEFAULT 'server'`);
+  }
+
+  if (!hasApiUsername) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN api_username TEXT`);
+  }
+
+  if (!hasApiPassword) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN api_password TEXT`);
+  }
+
+  if (!hasApiPort) {
+    db.exec(`ALTER TABLE hosts ADD COLUMN api_port INTEGER DEFAULT 8728`);
+  }
 
   console.log('Database initialized successfully');
 }

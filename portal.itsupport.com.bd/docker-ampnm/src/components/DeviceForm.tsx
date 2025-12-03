@@ -12,6 +12,52 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Link } from 'react-router-dom';
 import { IconPicker, ICON_OPTIONS } from './IconPicker';
 
+type DeviceType = 'router' | 'switch' | 'server' | 'firewall' | 'docker' | 'cloud';
+
+const TYPE_ICON_SETS: { id: DeviceType; label: string; icons: string[] }[] = [
+  {
+    id: 'router',
+    label: 'Router & Wireless',
+    icons: ['router', 'core-router', 'wireless-router', 'radio-tower-router', 'mikrotik-router'],
+  },
+  {
+    id: 'switch',
+    label: 'Switching & LAN',
+    icons: ['switch', 'l3-switch', 'wan-aggregator', 'wireless-bridge', 'wireless-bridge-router'],
+  },
+  {
+    id: 'server',
+    label: 'Server & Compute',
+    icons: ['server', 'rack', 'box', 'database', 'nas'],
+  },
+  {
+    id: 'firewall',
+    label: 'Security',
+    icons: ['firewall', 'branch-gateway', 'isp-peering', 'satellite-gateway', 'directional-antenna'],
+  },
+  {
+    id: 'docker',
+    label: 'Docker & Containers',
+    icons: ['docker-box', 'container', 'package', 'package-2', 'ship-wheel'],
+  },
+  {
+    id: 'cloud',
+    label: 'Cloud & Edge',
+    icons: ['cloud', 'satellite-link', 'satellite-gateway', 'ship-wheel', 'container-box'],
+  },
+];
+
+const detectTypeFromIcon = (icon: string): DeviceType => {
+  for (const set of TYPE_ICON_SETS) {
+    if (set.icons.includes(icon)) return set.id;
+  }
+  if (icon.includes('router')) return 'router';
+  if (icon.includes('switch')) return 'switch';
+  if (icon.includes('cloud')) return 'cloud';
+  if (icon.includes('docker') || icon.includes('container')) return 'docker';
+  return 'server';
+};
+
 const deviceSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   ip_address: z.string().optional().nullable(),
@@ -21,6 +67,9 @@ const deviceSchema = z.object({
   ping_interval: z.coerce.number().int().positive().optional().nullable(),
   icon_size: z.coerce.number().int().min(20).max(100).optional().nullable(),
   name_text_size: z.coerce.number().int().min(8).max(24).optional().nullable(),
+  router_api_username: z.string().optional().nullable(),
+  router_api_password: z.string().optional().nullable(),
+  router_api_port: z.coerce.number().int().positive().optional().nullable(),
   warning_latency_threshold: z.coerce.number().int().positive().optional().nullable(),
   warning_packetloss_threshold: z.coerce.number().int().positive().max(100).optional().nullable(),
   critical_latency_threshold: z.coerce.number().int().positive().optional().nullable(),
@@ -37,10 +86,17 @@ interface DeviceFormProps {
 export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceFormProps) => {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
+  const iconLookup = useMemo(
+    () => Object.fromEntries(ICON_OPTIONS.map(option => [option.value, option])),
+    [],
+  );
+
   const defaultIcon = useMemo(() => {
     const requestedIcon = initialData?.icon || initialData?.type;
     return ICON_OPTIONS.some(option => option.value === requestedIcon) ? requestedIcon : 'server';
   }, [initialData]);
+
+  const [deviceType, setDeviceType] = useState<DeviceType>(() => detectTypeFromIcon(defaultIcon));
 
   const form = useForm<z.infer<typeof deviceSchema>>({
     resolver: zodResolver(deviceSchema),
@@ -53,6 +109,9 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
       ping_interval: initialData?.ping_interval || undefined,
       icon_size: initialData?.icon_size || 50,
       name_text_size: initialData?.name_text_size || 14,
+      router_api_username: initialData?.router_api_username || '',
+      router_api_password: initialData?.router_api_password || '',
+      router_api_port: initialData?.router_api_port || 8728,
       warning_latency_threshold: initialData?.warning_latency_threshold || undefined,
       warning_packetloss_threshold: initialData?.warning_packetloss_threshold || undefined,
       critical_latency_threshold: initialData?.critical_latency_threshold || undefined,
@@ -60,6 +119,24 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
       show_live_ping: initialData?.show_live_ping || false,
     },
   });
+
+  const selectedIcon = form.watch('icon');
+  const routerApiUsername = form.watch('router_api_username');
+  const routerApiPassword = form.watch('router_api_password');
+
+  const showRouterApi =
+    (selectedIcon && selectedIcon.includes('router')) ||
+    !!routerApiUsername ||
+    !!routerApiPassword ||
+    initialData?.router_api_port !== undefined;
+
+  const handleDeviceTypeChange = (type: DeviceType) => {
+    setDeviceType(type);
+    const recommendedIcons = TYPE_ICON_SETS.find(set => set.id === type)?.icons || [];
+    if (recommendedIcons.length > 0 && !recommendedIcons.includes(form.getValues('icon'))) {
+      form.setValue('icon', recommendedIcons[0]);
+    }
+  };
 
   const handleSubmit = (values: z.infer<typeof deviceSchema>) => {
     onSubmit(values);
@@ -115,6 +192,66 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                 </FormItem>
               )}
             />
+
+            {showRouterApi && (
+              <Card className="bg-slate-50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">MikroTik API Credentials</CardTitle>
+                  <CardDescription className="text-sm">
+                    Provide the RouterOS API account (from the MikroTik setup guide) so AMPNM can poll interface traffic over port 8728.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-0">
+                  <FormField
+                    control={form.control}
+                    name="router_api_username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Username</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ampnm-monitor" {...field} />
+                        </FormControl>
+                        <FormDescription>Matches the RouterOS user you created for traffic monitoring.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="router_api_password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="ampnmPass value" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="router_api_port"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Port</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="8728"
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(event) => field.onChange(event.target.value === '' ? null : +event.target.value)}
+                          />
+                        </FormControl>
+                        <FormDescription>Default RouterOS API port is 8728.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            )}
             <FormField
               control={form.control}
               name="icon"
@@ -122,7 +259,50 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                 <FormItem>
                   <FormLabel>Device Icon</FormLabel>
                   <FormControl>
-                    <div className="space-y-2">
+                    <div className="space-y-4">
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">Device Type</p>
+                          <select
+                            value={deviceType}
+                            onChange={event => handleDeviceTypeChange(event.target.value as DeviceType)}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                          >
+                            {TYPE_ICON_SETS.map(type => (
+                              <option key={type.id} value={type.id}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                          <FormDescription>
+                            Pick a type to see a curated set of five matching icons you can choose from immediately.
+                          </FormDescription>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Quick pick (5 per type)</p>
+                          <div className="grid grid-cols-5 gap-2">
+                            {(TYPE_ICON_SETS.find(set => set.id === deviceType)?.icons || []).map(iconValue => {
+                              const iconMeta = iconLookup[iconValue];
+                              const IconComponent = iconMeta?.Icon;
+                              return (
+                                <Button
+                                  key={iconValue}
+                                  type="button"
+                                  variant={field.value === iconValue ? 'default' : 'outline'}
+                                  className="h-auto flex flex-col items-center gap-1 px-2 py-3 text-xs"
+                                  onClick={() => field.onChange(iconValue)}
+                                >
+                                  {IconComponent && <IconComponent className="h-4 w-4" />}
+                                  <span className="text-[10px] leading-tight text-center">{iconMeta?.label || iconValue}</span>
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <FormDescription>
+                            Each type includes five defaults—select one above or open the full gallery for more options.
+                          </FormDescription>
+                        </div>
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
@@ -144,8 +324,9 @@ export const DeviceForm = ({ initialData, onSubmit, isEditing = false }: DeviceF
                         ))}
                       </select>
                       <FormDescription>
-                        Browse the open-source icon gallery, filter by category, and pick the device icon you prefer. You can also
-                        quickly choose from the dropdown list above if the gallery dialog is not visible.
+                        Browse the open-source icon gallery, filter by category, or use the quick router/docker galleries to see
+                        multiple icon styles at once. Choosing any router icon will also reveal the MikroTik API credential inputs.
+                        You can also quickly choose from the dropdown list above if the gallery dialog is not visible.
                       </FormDescription>
                     </div>
                   </FormControl>

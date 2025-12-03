@@ -62,6 +62,13 @@ Once your license is activated, you'll be redirected to the login page:
 
 ## Troubleshooting
 
+### Docker compose up is slow or seems stuck
+- Image download time depends on your connection. Run `docker compose pull` first to fetch layers, then `docker compose up --build --progress=plain -d` so you can see each step.
+- Increase compose timeout for slow links: `export COMPOSE_HTTP_TIMEOUT=600` (10 minutes) before running compose.
+- Watch live logs to confirm progress: `docker compose logs -f --tail=50 app db`.
+- Verify you have disk space (`df -h`) and that Docker can reach the registry (`ping registry-1.docker.io`).
+- See `INSTALL_TROUBLESHOOTING.md` for a deeper checklist.
+
 ### License Expired Page on First Install
 If you see the "License Required" page (`license_expired.php`) immediately after installation:
 
