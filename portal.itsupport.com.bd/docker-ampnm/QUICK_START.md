@@ -12,6 +12,7 @@ docker compose up --build --progress=plain -d
 ```
 
 > ⏳ First start can take several minutes while Docker downloads the MySQL base image and builds PHP packages. Keep the terminal open until you see the containers finish downloading/building.
+> 🔁 If you hit `unexpected EOF` while pulling, rerun `docker compose pull db --progress=plain` (or `docker pull mysql:8`) to resume the largest layer, then rerun the start command.
 
 ### Step 2: Access Application
 Open browser: `http://YOUR_IP:2266`

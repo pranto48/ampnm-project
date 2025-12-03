@@ -24,6 +24,15 @@ docker compose up --build --progress=plain -d
 - The MySQL base image is the largest layer and may take several minutes on slow links.
 - The PHP image build step downloads Debian packages the first time; subsequent builds are faster.
 
+### If you see `unexpected EOF` or layer download failures
+- This usually means the connection to Docker Hub was interrupted mid-download.
+- Fixes to try:
+  - Extend timeouts: `export COMPOSE_HTTP_TIMEOUT=1200` (20 minutes) then rerun `docker compose pull --progress=plain`.
+  - Pre-pull the largest layer directly so it can resume: `docker pull mysql:8 --progress=plain`.
+  - Resume only the database layer: `docker compose pull db --progress=plain`.
+  - Clean partial layers if corruption persists: `docker system prune -af --volumes` (removes unused images/volumes; stop other containers first).
+  - Confirm disk space (`df -h`) and that your network link is stable or not rate-limited.
+
 ## 4) Tail logs to verify startup
 ```bash
 docker compose logs -f --tail=80 app db

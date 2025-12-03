@@ -19,6 +19,7 @@ Access at: http://localhost:2266
 - Password: `password` (change in docker-compose.yml)
 
 > Stuck during download/build? See `INSTALL_TROUBLESHOOTING.md` for diagnostics and progress tips.
+> If you see `unexpected EOF` while pulling images, rerun `docker compose pull db --progress=plain` (or `docker pull mysql:8`) to resume the largest layer, then rerun the start command.
 
 ## 📋 Requirements
 
