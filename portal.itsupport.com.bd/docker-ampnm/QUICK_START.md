@@ -4,8 +4,14 @@
 
 ### Step 1: Start Container
 ```bash
-docker-compose up -d
+# Faster on slow links: pre-pull images first
+docker compose pull
+
+# Then build/run (shows full download progress)
+docker compose up --build --progress=plain -d
 ```
+
+> ⏳ First start can take several minutes while Docker downloads the MySQL base image and builds PHP packages. Keep the terminal open until you see the containers finish downloading/building.
 
 ### Step 2: Access Application
 Open browser: `http://YOUR_IP:2266`
