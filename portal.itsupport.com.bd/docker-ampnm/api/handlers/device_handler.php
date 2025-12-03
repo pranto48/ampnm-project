@@ -151,11 +151,11 @@ switch ($action) {
             try {
                 $sql = "INSERT INTO devices (
                     user_id, name, ip, check_port, monitor_method, type, description,
-                    ping_interval, icon_size, name_text_size, icon_url, 
-                    warning_latency_threshold, warning_packetloss_threshold, 
-                    critical_latency_threshold, critical_packetloss_threshold, 
+                    ping_interval, icon_size, name_text_size, icon_url, router_api_username, router_api_password, router_api_port,
+                    warning_latency_threshold, warning_packetloss_threshold,
+                    critical_latency_threshold, critical_packetloss_threshold,
                     show_live_ping, map_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)"; // map_id is NULL
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)"; // map_id is NULL
 
                 $stmt = $pdo->prepare($sql);
                 $imported_count = 0;
@@ -173,6 +173,9 @@ switch ($action) {
                         $device['icon_size'] ?? 50,
                         $device['name_text_size'] ?? 14,
                         $device['icon_url'] ?? null,
+                        $device['router_api_username'] ?? null,
+                        $device['router_api_password'] ?? null,
+                        $device['router_api_port'] ?? null,
                         $device['warning_latency_threshold'] ?? null,
                         $device['warning_packetloss_threshold'] ?? null,
                         $device['critical_latency_threshold'] ?? null,
@@ -422,9 +425,10 @@ switch ($action) {
         $sql = "
             SELECT 
                 d.id, d.name, d.ip, d.check_port, d.monitor_method, d.type, d.description, d.enabled, d.x, d.y, d.map_id,
-                d.ping_interval, d.icon_size, d.name_text_size, d.icon_url, 
-                d.warning_latency_threshold, d.warning_packetloss_threshold, 
-                d.critical_latency_threshold, d.critical_packetloss_threshold, 
+                d.ping_interval, d.icon_size, d.name_text_size, d.icon_url,
+                d.router_api_username, d.router_api_password, d.router_api_port,
+                d.warning_latency_threshold, d.warning_packetloss_threshold,
+                d.critical_latency_threshold, d.critical_packetloss_threshold,
                 d.last_avg_time, d.last_ttl, d.show_live_ping, d.status, d.last_seen,
                 m.name as map_name,
                 p.output as last_ping_output
@@ -482,12 +486,13 @@ switch ($action) {
                 exit;
             }
 
-            $sql = "INSERT INTO devices (user_id, name, ip, check_port, monitor_method, type, description, map_id, x, y, ping_interval, icon_size, name_text_size, icon_url, warning_latency_threshold, warning_packetloss_threshold, critical_latency_threshold, critical_packetloss_threshold, show_live_ping) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO devices (user_id, name, ip, check_port, monitor_method, type, description, map_id, x, y, ping_interval, icon_size, name_text_size, icon_url, router_api_username, router_api_password, router_api_port, warning_latency_threshold, warning_packetloss_threshold, critical_latency_threshold, critical_packetloss_threshold, show_live_ping) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $current_user_id, $input['name'], $input['ip'] ?? null, $input['check_port'] ?? null, $input['monitor_method'] ?? 'ping', $input['type'], $input['description'] ?? null, $input['map_id'] ?? null,
                 $input['x'] ?? null, $input['y'] ?? null,
                 $input['ping_interval'] ?? null, $input['icon_size'] ?? 50, $input['name_text_size'] ?? 14, $input['icon_url'] ?? null,
+                $input['router_api_username'] ?? null, $input['router_api_password'] ?? null, $input['router_api_port'] ?? null,
                 $input['warning_latency_threshold'] ?? null, $input['warning_packetloss_threshold'] ?? null,
                 $input['critical_latency_threshold'] ?? null, $input['critical_packetloss_threshold'] ?? null,
                 ($input['show_live_ping'] ?? false) ? 1 : 0
@@ -506,7 +511,7 @@ switch ($action) {
             $id = $input['id'] ?? null;
             $updates = $input['updates'] ?? [];
             if (!$id || empty($updates)) { http_response_code(400); echo json_encode(['error' => 'Device ID and updates are required']); exit; }
-            $allowed_fields = ['name', 'ip', 'check_port', 'monitor_method', 'type', 'description', 'x', 'y', 'map_id', 'ping_interval', 'icon_size', 'name_text_size', 'icon_url', 'warning_latency_threshold', 'warning_packetloss_threshold', 'critical_latency_threshold', 'critical_packetloss_threshold', 'show_live_ping', 'status', 'last_seen', 'last_avg_time', 'last_ttl']; // Added status and last_seen
+            $allowed_fields = ['name', 'ip', 'check_port', 'monitor_method', 'type', 'description', 'x', 'y', 'map_id', 'ping_interval', 'icon_size', 'name_text_size', 'icon_url', 'router_api_username', 'router_api_password', 'router_api_port', 'warning_latency_threshold', 'warning_packetloss_threshold', 'critical_latency_threshold', 'critical_packetloss_threshold', 'show_live_ping', 'status', 'last_seen', 'last_avg_time', 'last_ttl']; // Added status and last_seen
             $fields = []; $params = [];
             foreach ($updates as $key => $value) {
                 if (in_array($key, $allowed_fields)) {
@@ -652,7 +657,7 @@ switch ($action) {
                 $suffix++;
             }
 
-            $insertSql = "INSERT INTO devices (user_id, name, ip, check_port, monitor_method, type, description, map_id, x, y, ping_interval, icon_size, name_text_size, icon_url, warning_latency_threshold, warning_packetloss_threshold, critical_latency_threshold, critical_packetloss_threshold, show_live_ping) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $insertSql = "INSERT INTO devices (user_id, name, ip, check_port, monitor_method, type, description, map_id, x, y, ping_interval, icon_size, name_text_size, icon_url, router_api_username, router_api_password, router_api_port, warning_latency_threshold, warning_packetloss_threshold, critical_latency_threshold, critical_packetloss_threshold, show_live_ping) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $insertStmt = $pdo->prepare($insertSql);
             $insertStmt->execute([
                 $current_user_id,
@@ -669,6 +674,9 @@ switch ($action) {
                 $device['icon_size'],
                 $device['name_text_size'],
                 $device['icon_url'],
+                $device['router_api_username'] ?? null,
+                $device['router_api_password'] ?? null,
+                $device['router_api_port'] ?? null,
                 $device['warning_latency_threshold'],
                 $device['warning_packetloss_threshold'],
                 $device['critical_latency_threshold'],
@@ -774,12 +782,12 @@ switch ($action) {
 
                 // Insert devices
                 $sql_device = "INSERT INTO devices (
-                    user_id, name, ip, check_port, type, description, map_id, x, y, 
-                    ping_interval, icon_size, name_text_size, icon_url, 
-                    warning_latency_threshold, warning_packetloss_threshold, 
-                    critical_latency_threshold, critical_packetloss_threshold, 
+                    user_id, name, ip, check_port, type, description, map_id, x, y,
+                    ping_interval, icon_size, name_text_size, icon_url, router_api_username, router_api_password, router_api_port,
+                    warning_latency_threshold, warning_packetloss_threshold,
+                    critical_latency_threshold, critical_packetloss_threshold,
                     show_live_ping
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt_device = $pdo->prepare($sql_device);
 
                 foreach ($devices_data as $device) {
@@ -797,6 +805,9 @@ switch ($action) {
                         $device['icon_size'] ?? 50,
                         $device['name_text_size'] ?? 14,
                         $device['icon_url'] ?? null,
+                        $device['router_api_username'] ?? null,
+                        $device['router_api_password'] ?? null,
+                        $device['router_api_port'] ?? null,
                         $device['warning_latency_threshold'] ?? null,
                         $device['warning_packetloss_threshold'] ?? null,
                         $device['critical_latency_threshold'] ?? null,

@@ -41,4 +41,9 @@ export const systemApi = {
   getInfo: () => api.get('/system/info'),
 };
 
+export const windowsAgentApi = {
+  getLatestMetrics: (staleMinutes = 15) =>
+    api.get(`/windows-metrics/latest?staleMinutes=${staleMinutes}`),
+};
+
 export default api;

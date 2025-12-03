@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Plus } from 'lucide-react';
 import { hostsApi, servicesApi } from '../lib/api';
-import { CheckType } from '../types/monitoring';
+import { CheckType, DeviceType } from '../types/monitoring';
 
 interface AddHostModalProps {
   onClose: () => void;
@@ -19,6 +19,10 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
   const [hostName, setHostName] = useState('');
   const [ipAddress, setIpAddress] = useState('');
   const [description, setDescription] = useState('');
+  const [deviceType, setDeviceType] = useState<DeviceType>('server');
+  const [apiUsername, setApiUsername] = useState('');
+  const [apiPassword, setApiPassword] = useState('');
+  const [apiPort, setApiPort] = useState(8728);
   const [services, setServices] = useState<ServiceInput[]>([
     { name: 'PING', check_type: 'ping', check_interval: 60, description: '' }
   ]);
@@ -48,7 +52,11 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
       const hostRes = await hostsApi.create({
         name: hostName,
         ip_address: ipAddress,
-        description: description || null
+        description: description || null,
+        device_type: deviceType,
+        api_username: apiUsername || null,
+        api_password: apiPassword || null,
+        api_port: apiPort || 8728
       });
 
       const hostId = hostRes.data.id;
@@ -68,8 +76,15 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
       }
 
       onSuccess();
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to add host');
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const errorWithResponse = err as { response?: { data?: { error?: string } }; message?: string };
+        setError(errorWithResponse.response?.data?.error || errorWithResponse.message || 'Failed to add host');
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to add host');
+      }
     } finally {
       setLoading(false);
     }
@@ -127,6 +142,74 @@ export default function AddHostModal({ onClose, onSuccess }: AddHostModalProps) 
                 required
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Device Type
+              </label>
+              <select
+                value={deviceType}
+                onChange={(e) => setDeviceType(e.target.value as DeviceType)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="server">Server</option>
+                <option value="switch">Switch</option>
+                <option value="router">Router</option>
+                <option value="firewall">Firewall</option>
+                <option value="docker">Docker / Container</option>
+                <option value="cloud">Cloud Service</option>
+              </select>
+            </div>
+
+            {deviceType === 'router' && (
+              <div className="border border-blue-100 bg-blue-50 rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">Router API Access (MikroTik)</h4>
+                    <p className="text-xs text-gray-600">
+                      Provide the RouterOS API account AMPNM should use to poll interface traffic. Matches the credentials
+                      described in the MikroTik setup guide.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Username</label>
+                    <input
+                      type="text"
+                      value={apiUsername}
+                      onChange={(e) => setApiUsername(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="ampnm-monitor"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Password</label>
+                    <input
+                      type="password"
+                      value={apiPassword}
+                      onChange={(e) => setApiPassword(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="ampnmPass value"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Port</label>
+                    <input
+                      type="number"
+                      value={apiPort}
+                      onChange={(e) => setApiPort(parseInt(e.target.value, 10) || 8728)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min={1}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">Default RouterOS API port is 8728.</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

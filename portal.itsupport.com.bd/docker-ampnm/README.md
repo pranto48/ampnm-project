@@ -5,7 +5,11 @@ Real-time network monitoring system with visual topology mapping.
 ## 🚀 Quick Start
 
 ```bash
-docker-compose up -d
+# Optional: pre-pull images on slow connections
+docker compose pull
+
+# Build and start with full progress output
+docker compose up --build --progress=plain -d
 ```
 
 Access at: http://localhost:2266
@@ -13,6 +17,9 @@ Access at: http://localhost:2266
 **Default Login:**
 - Username: `admin`
 - Password: `password` (change in docker-compose.yml)
+
+> Stuck during download/build? See `INSTALL_TROUBLESHOOTING.md` for diagnostics and progress tips.
+> If you see `unexpected EOF` while pulling images, rerun `docker compose pull db --progress=plain` (or `docker pull mysql:8`) to resume the largest layer, then rerun the start command.
 
 ## 📋 Requirements
 
