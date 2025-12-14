@@ -7,6 +7,9 @@ $current_user_id = $_SESSION['user_id'];
 $message = '';
 $device_id = $_GET['id'] ?? null;
 
+// Load device icons library
+$deviceIconsLibrary = require_once 'includes/device_icons.php';
+
 if (!$device_id) {
     header('Location: devices.php');
     exit;
@@ -83,78 +86,43 @@ $form_data = $device ?? [];
             <a href="devices.php" class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-500"><i class="fas fa-arrow-left mr-2"></i>Back to Devices</a>
         </div>
 
-        <div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-6 max-w-2xl mx-auto">
+        <div class="bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-6 max-w-4xl mx-auto">
             <?= $message ?>
             <?php if ($device): ?>
             <form method="POST" class="space-y-4">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-slate-400 mb-1">Device Name</label>
-                    <input type="text" id="name" name="name" placeholder="e.g., Main Router" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500" value="<?= htmlspecialchars($form_data['name'] ?? '') ?>" required>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-slate-400 mb-1">Device Name</label>
+                        <input type="text" id="name" name="name" placeholder="e.g., Main Router" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500" value="<?= htmlspecialchars($form_data['name'] ?? '') ?>" required>
+                    </div>
+                    <div>
+                        <label for="ip" class="block text-sm font-medium text-slate-400 mb-1">IP Address (Optional)</label>
+                        <input type="text" id="ip" name="ip" placeholder="e.g., 192.168.1.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500" value="<?= htmlspecialchars($form_data['ip'] ?? '') ?>">
+                    </div>
                 </div>
-                <div>
-                    <label for="ip" class="block text-sm font-medium text-slate-400 mb-1">IP Address (Optional)</label>
-                    <input type="text" id="ip" name="ip" placeholder="e.g., 192.168.1.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500" value="<?= htmlspecialchars($form_data['ip'] ?? '') ?>">
-                </div>
+
                 <div>
                     <label for="description" class="block text-sm font-medium text-slate-400 mb-1">Description (Optional)</label>
                     <textarea id="description" name="description" rows="2" placeholder="Optional notes about the device" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500"><?= htmlspecialchars($form_data['description'] ?? '') ?></textarea>
                 </div>
-                <div>
-                    <label for="type" class="block text-sm font-medium text-slate-400 mb-1">Type (Default Icon)</label>
-                    <select id="type" name="type" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500">
-                        <?php
-                        $device_types = [
-                            'box' => 'Box (Group)', 'camera' => 'CC Camera', 'cloud' => 'Cloud', 'database' => 'Database',
-                            'firewall' => 'Firewall', 'ipphone' => 'IP Phone', 'laptop' => 'Laptop/PC', 'mobile' => 'Mobile Phone',
-                            'nas' => 'NAS', 'rack' => 'Networking Rack', 'printer' => 'Printer', 'punchdevice' => 'Punch Device',
-                            'radio-tower' => 'Radio Tower', 'router' => 'Router', 'server' => 'Server', 'switch' => 'Switch',
-                            'tablet' => 'Tablet', 'wifi-router' => 'WiFi Router', 'other' => 'Other'
-                        ];
 
-                        $icon_gallery = [
-                            'server' => ['label' => 'Server', 'icon' => 'fa-server'],
-                            'router' => ['label' => 'Router', 'icon' => 'fa-network-wired'],
-                            'switch' => ['label' => 'Switch', 'icon' => 'fa-ethernet'],
-                            'wifi-router' => ['label' => 'WiFi Router', 'icon' => 'fa-wifi'],
-                            'radio-tower' => ['label' => 'Radio Tower', 'icon' => 'fa-tower-broadcast'],
-                            'firewall' => ['label' => 'Firewall', 'icon' => 'fa-shield-halved'],
-                            'cloud' => ['label' => 'Cloud', 'icon' => 'fa-cloud'],
-                            'database' => ['label' => 'Database', 'icon' => 'fa-database'],
-                            'rack' => ['label' => 'Rack', 'icon' => 'fa-cubes'],
-                            'printer' => ['label' => 'Printer', 'icon' => 'fa-print'],
-                            'nas' => ['label' => 'NAS', 'icon' => 'fa-hdd'],
-                            'camera' => ['label' => 'Camera', 'icon' => 'fa-video'],
-                            'ipphone' => ['label' => 'IP Phone', 'icon' => 'fa-phone'],
-                            'punchdevice' => ['label' => 'Punch Device', 'icon' => 'fa-plug'],
-                            'laptop' => ['label' => 'Laptop/PC', 'icon' => 'fa-laptop-code'],
-                            'tablet' => ['label' => 'Tablet', 'icon' => 'fa-tablet-screen-button'],
-                            'mobile' => ['label' => 'Mobile', 'icon' => 'fa-mobile-screen'],
-                            'box' => ['label' => 'Box (Group)', 'icon' => 'fa-box'],
-                            'other' => ['label' => 'Other', 'icon' => 'fa-circle'],
-                        ];
-                        foreach ($device_types as $value => $label) {
+                <div>
+                    <label for="type" class="block text-sm font-medium text-slate-400 mb-1">Device Type & Icon</label>
+                    <select id="type" name="type" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500 mb-4">
+                        <?php
+                        foreach ($deviceIconsLibrary as $value => $typeData) {
                             $selected = (($form_data['type'] ?? 'server') === $value) ? 'selected' : '';
-                            echo "<option value=\"{$value}\" {$selected}>{$label}</option>";
+                            $iconCount = count($typeData['icons'] ?? []);
+                            echo "<option value=\"$value\" $selected>{$typeData['label']} ($iconCount variants)</option>";
                         }
                         ?>
                     </select>
-                    <div class="mt-3 bg-slate-900/60 border border-slate-700 rounded-lg p-3">
-                        <div class="flex items-center justify-between mb-2">
-                            <p class="text-xs text-slate-400">Tap an icon to sync the dropdown if the list is hidden.</p>
-                            <span class="text-[10px] uppercase tracking-wide text-slate-500">Icon Gallery</span>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="iconGallery">
-                            <?php foreach ($icon_gallery as $value => $meta): $active = (($form_data['type'] ?? 'server') === $value); ?>
-                                <button type="button" class="icon-gallery-btn w-full text-left px-3 py-2 rounded-md border <?= $active ? 'border-cyan-500 ring-2 ring-cyan-500/50 bg-slate-800' : 'border-slate-700 hover:border-cyan-500 hover:text-cyan-200 bg-slate-900' ?>" data-icon-choice="<?= htmlspecialchars($value) ?>">
-                                    <span class="flex items-center gap-2">
-                                        <i class="fas <?= htmlspecialchars($meta['icon']) ?> text-cyan-400"></i>
-                                        <span class="text-sm text-slate-200"><?= htmlspecialchars($meta['label']) ?></span>
-                                    </span>
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
+                    
+                    <!-- Enhanced Icon Picker Container -->
+                    <link rel="stylesheet" href="assets/icon-picker.css">
+                    <div id="iconPickerContainer" class="icon-picker-container"></div>
                 </div>
+
                 <div>
                     <label for="map_id" class="block text-sm font-medium text-slate-400 mb-1">Map Assignment (Optional)</label>
                     <select id="map_id" name="map_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500">
@@ -166,6 +134,7 @@ $form_data = $device ?? [];
                         <?php endforeach; ?>
                     </select>
                 </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="monitor_method" class="block text-sm font-medium text-slate-400 mb-1">Monitoring Method</label>
@@ -181,10 +150,12 @@ $form_data = $device ?? [];
                         <p class="text-xs text-slate-500 mt-1">For port checks, provide the port to probe; leave blank for pure ping.</p>
                     </div>
                 </div>
+
                 <div>
                     <label for="ping_interval" class="block text-sm font-medium text-slate-400 mb-1">Ping Interval (seconds)</label>
                     <input type="number" id="ping_interval" name="ping_interval" placeholder="e.g., 60 (leave blank for no auto ping)" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500" value="<?= htmlspecialchars($form_data['ping_interval'] ?? '') ?>">
                 </div>
+
                 <fieldset class="border border-slate-600 rounded-lg p-4">
                     <legend class="text-sm font-medium text-slate-400 px-2">Custom Icon (Optional)</legend>
                     <div class="space-y-3">
@@ -194,6 +165,7 @@ $form_data = $device ?? [];
                         </div>
                     </div>
                 </fieldset>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="icon_size" class="block text-sm font-medium text-slate-400 mb-1">Icon Size</label>
@@ -204,6 +176,7 @@ $form_data = $device ?? [];
                         <input type="number" id="name_text_size" name="name_text_size" placeholder="e.g., 14" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-cyan-500" value="<?= htmlspecialchars($form_data['name_text_size'] ?? '14') ?>">
                     </div>
                 </div>
+
                 <fieldset class="border border-slate-600 rounded-lg p-4">
                     <legend class="text-sm font-medium text-slate-400 px-2">Status Thresholds (Optional)</legend>
                     <div class="grid grid-cols-2 gap-4">
@@ -225,12 +198,14 @@ $form_data = $device ?? [];
                         </div>
                     </div>
                 </fieldset>
+
                 <div>
                     <label for="show_live_ping" class="flex items-center text-sm font-medium text-slate-400">
                         <input type="checkbox" id="show_live_ping" name="show_live_ping" class="h-4 w-4 rounded border-slate-500 bg-slate-700 text-cyan-600 focus:ring-cyan-500" <?= ($form_data['show_live_ping'] ?? 0) ? 'checked' : '' ?>>
                         <span class="ml-2">Show live ping status on map</span>
                     </label>
                 </div>
+
                 <div class="flex justify-end gap-4 mt-6">
                     <button type="submit" class="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700">
                         <i class="fas fa-save mr-2"></i>Save Changes
@@ -242,38 +217,12 @@ $form_data = $device ?? [];
     </div>
 </main>
 
+<!-- Load device icons library to JavaScript -->
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const typeSelect = document.getElementById('type');
-    const buttons = document.querySelectorAll('.icon-gallery-btn');
-
-    const syncSelection = (value) => {
-        if (typeSelect) {
-            typeSelect.value = value;
-        }
-        buttons.forEach((btn) => {
-            if (btn.dataset.iconChoice === value) {
-                btn.classList.add('border-cyan-500', 'ring-2', 'ring-cyan-500/50', 'bg-slate-800');
-                btn.classList.remove('border-slate-700');
-            } else {
-                btn.classList.remove('border-cyan-500', 'ring-2', 'ring-cyan-500/50', 'bg-slate-800');
-                btn.classList.add('border-slate-700');
-            }
-        });
-    };
-
-    buttons.forEach((btn) => {
-        btn.addEventListener('click', (event) => {
-            event.preventDefault();
-            syncSelection(btn.dataset.iconChoice);
-        });
-    });
-
-    if (typeSelect) {
-        typeSelect.addEventListener('change', () => syncSelection(typeSelect.value));
-        syncSelection(typeSelect.value || buttons[0]?.dataset.iconChoice);
-    }
-});
+    window.deviceIconsLibrary = <?= json_encode($deviceIconsLibrary, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>;
 </script>
+
+<!-- Load enhanced icon picker -->
+<script src="assets/icon-picker.js"></script>
 
 <?php include 'footer.php'; ?>
