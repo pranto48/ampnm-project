@@ -5,6 +5,9 @@ include 'header.php';
 // Get user role from session
 $user_role = $_SESSION['user_role'] ?? 'viewer';
 $is_admin = ($user_role === 'admin');
+
+// Load device icons library for icon mapping on map
+$deviceIconsLibrary = require_once 'includes/device_icons.php';
 ?>
 
 <main id="app">
@@ -248,5 +251,10 @@ $is_admin = ($user_role === 'admin');
         </div>
     </div>
 </main>
+
+<!-- Load device icons library for JavaScript icon mapping -->
+<script>
+    window.deviceIconsLibrary = <?= json_encode($deviceIconsLibrary) ?>;
+</script>
 
 <?php include 'footer.php'; ?>
