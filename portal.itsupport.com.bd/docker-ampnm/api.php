@@ -23,7 +23,7 @@ try {
 
         $stmt_devices = $pdo->prepare("
             SELECT 
-                d.id, d.name, d.ip, d.check_port, d.type, d.description, d.x, d.y, 
+                d.id, d.name, d.ip, d.check_port, d.type, d.subchoice, d.description, d.x, d.y, 
                 d.ping_interval, d.icon_size, d.name_text_size, d.icon_url, 
                 d.warning_latency_threshold, d.warning_packetloss_threshold, 
                 d.critical_latency_threshold, d.critical_packetloss_threshold, 
